@@ -17,23 +17,15 @@ import (
 
 func TestUseApp(t *testing.T) {
 	app := InitApp(context.Background())
-	err := app.UseSession(time.Second*10, func(ctx mongo.SessionContext, redv *redis.Conn) error {
-		for {
-			//err := dbs.Client().Ping(dbs, readpref.Nearest())
-			//if err != nil {
-			//	return err
-			//}
-
-			cmd := redis.NewStatusCmd("ping")
-			err := redv.ProcessContext(ctx, cmd)
-			if err != nil {
-				return err
-			}
-			log.Println(cmd.Result())
-			time.Sleep(time.Second)
-		}
+	err := app.UseDb(func(db IDbImp) error {
+		return db.UseTx(func(sdb IDbImp) error {
+			return nil
+		})
 	})
-	log.Println("session error = ", err)
+	err = app.UseTx(func(sdb IDbImp) error {
+		return nil
+	})
+	log.Println(err)
 }
 
 func TestRedis(t *testing.T) {
@@ -52,7 +44,6 @@ func TestRedis(t *testing.T) {
 		log.Println(conn, s.TotalConns, s.IdleConns, s.StaleConns)
 		//conn.Close()
 	}
-
 }
 
 //mongodb://user:pwd@localhost:27017

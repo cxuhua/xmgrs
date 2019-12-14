@@ -5,6 +5,7 @@ import (
 	"flag"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/cxuhua/xmgrs/db"
 
@@ -56,7 +57,9 @@ func (lis *mylis) OnStart() {
 }
 
 func (lis *mylis) OnStop(sig os.Signal) {
-	err := lis.xhttp.Shutdown(lis.ctx)
+	ctx, cancel := context.WithTimeout(lis.ctx, time.Second*15)
+	defer cancel()
+	err := lis.xhttp.Shutdown(ctx)
 	if err != nil {
 		xginx.LogError(err)
 	}

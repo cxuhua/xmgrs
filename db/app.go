@@ -13,8 +13,14 @@ import (
 )
 
 var (
-	RedisURI = "127.0.0.1:6379"
-	MongoURI = "mongodb://127.0.0.1:27017"
+	//连接字符串设置
+	RedisURI = "redis://127.0.0.1:6379"
+	MongoURI = "mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019"
+	//连接池设置
+	MaxPoolSize = uint64(2000)
+	MinPoolSize = uint64(10)
+	//默认超时世界
+	DbTimeout = time.Second * 30
 )
 
 var (
@@ -43,13 +49,35 @@ func (app *App) Clone() *App {
 }
 
 //启用数据库和redis
-func (app *App) UseSession(timeout time.Duration, fn func(ctx mongo.SessionContext, redv *redis.Conn) error) error {
+//如果需要处理redis超时用 conn.ProcessContext 方法
+func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error) error {
 	ctx, cancel := context.WithTimeout(app, timeout)
 	defer cancel()
 	return mongocli.UseSession(ctx, func(sctx mongo.SessionContext) error {
+		//获取一个redis连接
 		conn := rediscli.Conn()
 		defer conn.Close()
-		return fn(sctx, conn)
+		//创建数据对象
+		return fn(newMongoRedisImp(sctx, conn, false))
+	})
+}
+
+//使用默认超时
+func (app *App) UseDb(fn func(db IDbImp) error) error {
+	return app.UseDbWithTimeout(DbTimeout, fn)
+}
+
+//使用自定义超时事务
+func (app *App) UseTxWithTimeout(timeout time.Duration, fn func(sdb IDbImp) error) error {
+	return app.UseDbWithTimeout(timeout, func(db IDbImp) error {
+		return db.UseTx(fn)
+	})
+}
+
+//使用默认超时事务
+func (app *App) UseTx(fn func(sdb IDbImp) error) error {
+	return app.UseDbWithTimeout(DbTimeout, func(db IDbImp) error {
+		return db.UseTx(fn)
 	})
 }
 
@@ -58,16 +86,21 @@ func (app *App) UseSession(timeout time.Duration, fn func(ctx mongo.SessionConte
 func InitApp(ctx context.Context) *App {
 	dbonce.Do(func() {
 		basectx = ctx
-		//redis初始化
-		rcli := redis.NewClient(&redis.Options{
-			Addr:         RedisURI,
-			PoolSize:     1000,
-			MinIdleConns: 5,
-		})
-		rediscli = rcli.WithContext(basectx)
-		//数据库初始化
-		opts := options.Client().ApplyURI(MongoURI)
-		mcli, err := mongo.NewClient(opts)
+		//redis init
+		ropts, err := redis.ParseURL(RedisURI)
+		if err != nil {
+			panic(err)
+		}
+		ropts.PoolSize = int(MaxPoolSize)
+		ropts.MinIdleConns = int(MinPoolSize)
+		rediscli = redis.NewClient(ropts).WithContext(basectx)
+		//mongodb init
+		mopts := options.
+			Client().
+			ApplyURI(MongoURI).
+			SetMaxPoolSize(MaxPoolSize).
+			SetMinPoolSize(MinPoolSize)
+		mcli, err := mongo.NewClient(mopts)
 		if err != nil {
 			panic(err)
 		}
