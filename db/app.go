@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
@@ -11,6 +10,11 @@ import (
 	"github.com/go-redis/redis/v7"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var (
+	RedisURI = "127.0.0.1:6379"
+	MongoURI = "mongodb://127.0.0.1:27017"
 )
 
 var (
@@ -39,32 +43,30 @@ func (app *App) Clone() *App {
 }
 
 //启用数据库和redis
-func (app *App) UseSession(timeout time.Duration, db func(dbs mongo.SessionContext, redv *redis.Conn) error) {
+func (app *App) UseSession(timeout time.Duration, fn func(ctx mongo.SessionContext, redv *redis.Conn) error) error {
 	ctx, cancel := context.WithTimeout(app, timeout)
 	defer cancel()
-	err := mongocli.UseSession(ctx, func(sctx mongo.SessionContext) error {
+	return mongocli.UseSession(ctx, func(sctx mongo.SessionContext) error {
 		conn := rediscli.Conn()
 		defer conn.Close()
-		return db(sctx, conn)
+		return fn(sctx, conn)
 	})
-	if err != nil {
-		log.Println(err)
-	}
 }
 
+//mongodb://user:pwd@localhost:27017
 //初始化一个实例对象
 func InitApp(ctx context.Context) *App {
 	dbonce.Do(func() {
 		basectx = ctx
 		//redis初始化
 		rcli := redis.NewClient(&redis.Options{
-			Addr:         "127.0.0.1:6379",
+			Addr:         RedisURI,
 			PoolSize:     1000,
 			MinIdleConns: 5,
 		})
 		rediscli = rcli.WithContext(basectx)
 		//数据库初始化
-		opts := options.Client().ApplyURI("mongodb://127.0.0.1:27017/")
+		opts := options.Client().ApplyURI(MongoURI)
 		mcli, err := mongo.NewClient(opts)
 		if err != nil {
 			panic(err)

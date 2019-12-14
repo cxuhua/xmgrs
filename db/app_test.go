@@ -15,6 +15,27 @@ import (
 	"github.com/go-redis/redis/v7"
 )
 
+func TestUseApp(t *testing.T) {
+	app := InitApp(context.Background())
+	err := app.UseSession(time.Second*10, func(ctx mongo.SessionContext, redv *redis.Conn) error {
+		for {
+			//err := dbs.Client().Ping(dbs, readpref.Nearest())
+			//if err != nil {
+			//	return err
+			//}
+
+			cmd := redis.NewStatusCmd("ping")
+			err := redv.ProcessContext(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			log.Println(cmd.Result())
+			time.Sleep(time.Second)
+		}
+	})
+	log.Println("session error = ", err)
+}
+
 func TestRedis(t *testing.T) {
 	cli := redis.NewClient(&redis.Options{
 		Addr:         "127.0.0.1:6379",
@@ -33,6 +54,8 @@ func TestRedis(t *testing.T) {
 	}
 
 }
+
+//mongodb://user:pwd@localhost:27017
 
 func TestMongo(t *testing.T) {
 	ctx := context.Background()
@@ -55,7 +78,7 @@ func TestMongo(t *testing.T) {
 			time.Sleep(time.Second * 10)
 		}()
 
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Second)
 
 	}
 }
