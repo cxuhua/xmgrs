@@ -27,7 +27,6 @@ var (
 	dbonce   = sync.Once{}
 	rediscli *redis.Client
 	mongocli *mongo.Client
-	basectx  context.Context
 )
 
 type App struct {
@@ -38,14 +37,6 @@ type App struct {
 
 func (app *App) Close() {
 
-}
-
-func (app *App) Clone() *App {
-	return &App{
-		redis:   app.redis,
-		mongo:   app.mongo,
-		Context: app.Context,
-	}
 }
 
 //启用数据库和redis
@@ -68,14 +59,14 @@ func (app *App) UseDb(fn func(db IDbImp) error) error {
 }
 
 //使用自定义超时事务
-func (app *App) UseTxWithTimeout(timeout time.Duration, fn func(sdb IDbImp) error) error {
+func (app *App) UseTxWithTimeout(timeout time.Duration, fn func(db IDbImp) error) error {
 	return app.UseDbWithTimeout(timeout, func(db IDbImp) error {
 		return db.UseTx(fn)
 	})
 }
 
 //使用默认超时事务
-func (app *App) UseTx(fn func(sdb IDbImp) error) error {
+func (app *App) UseTx(fn func(db IDbImp) error) error {
 	return app.UseDbWithTimeout(DbTimeout, func(db IDbImp) error {
 		return db.UseTx(fn)
 	})
@@ -85,7 +76,6 @@ func (app *App) UseTx(fn func(sdb IDbImp) error) error {
 //初始化一个实例对象
 func InitApp(ctx context.Context) *App {
 	dbonce.Do(func() {
-		basectx = ctx
 		//redis init
 		ropts, err := redis.ParseURL(RedisURI)
 		if err != nil {
@@ -93,7 +83,7 @@ func InitApp(ctx context.Context) *App {
 		}
 		ropts.PoolSize = int(MaxPoolSize)
 		ropts.MinIdleConns = int(MinPoolSize)
-		rediscli = redis.NewClient(ropts).WithContext(basectx)
+		rediscli = redis.NewClient(ropts).WithContext(ctx)
 		//mongodb init
 		mopts := options.
 			Client().
@@ -104,14 +94,14 @@ func InitApp(ctx context.Context) *App {
 		if err != nil {
 			panic(err)
 		}
-		err = mcli.Connect(basectx)
+		err = mcli.Connect(ctx)
 		if err != nil {
 			panic(err)
 		}
 		mongocli = mcli
 	})
 	return &App{
-		Context: basectx,
+		Context: ctx,
 		redis:   rediscli,
 		mongo:   mongocli,
 	}
@@ -126,9 +116,9 @@ func GetApp(c *gin.Context) *App {
 	return c.MustGet(appkey).(*App)
 }
 
-func AppHandler(app *App) gin.HandlerFunc {
+func AppHandler(ctx context.Context) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		app = app.Clone()
+		app := InitApp(ctx)
 		defer app.Close()
 		c.Set(appkey, app)
 		c.Next()

@@ -7,6 +7,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/cxuhua/xmgrs/config"
+
+	"github.com/cxuhua/xmgrs/api"
+
 	"github.com/cxuhua/xmgrs/db"
 
 	"github.com/gin-gonic/gin"
@@ -26,15 +30,14 @@ func (lis *mylis) runHttp() {
 	lis.ctx, lis.cancel = context.WithCancel(context.Background())
 	defer lis.cancel()
 
-	m := gin.Default()
+	db.RedisURI = config.Redis
+	db.MongoURI = config.Mongo
 
-	app := db.InitApp(lis.ctx)
-
-	m.Use(db.AppHandler(app))
+	handler := api.InitHandler(lis.ctx, api.IsLogin)
 
 	lis.xhttp = &http.Server{
-		Addr:    ":9334",
-		Handler: m,
+		Addr:    config.HttpAddr,
+		Handler: handler,
 	}
 	if err := lis.xhttp.ListenAndServe(); err != nil {
 		xginx.LogError("run serve info", err)
