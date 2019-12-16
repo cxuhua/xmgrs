@@ -2,57 +2,104 @@ package db
 
 import (
 	"context"
-	"log"
+	"errors"
+	"os"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/cxuhua/xginx"
 )
 
+type testlis struct {
+	xginx.Listener
+}
+
+func (lis *testlis) OnStart() {
+
+}
+
+func (lis *testlis) OnStop(sig os.Signal) {
+
+}
+
 func init() {
-	xginx.InitConfig("../v10000.json")
+	//创建测试配置
+	xginx.NewTestConfig()
 }
 
-func TestDeleteAccount(t *testing.T) {
+func TestListCoins(t *testing.T) {
 	app := InitApp(context.Background())
 	defer app.Close()
 	err := app.UseTx(func(db IDbImp) error {
-		return db.DeleteAccount("st1qmwdvr706cqux5rrnltvqgh0xhmjscmzn2afune")
-	})
-	if err != nil {
-		panic(err)
-	}
-}
+		//创建账号
+		user := &TUsers{}
+		user.Id = primitive.NewObjectID()
+		user.Mobile = "17716858036"
+		user.Pass = xginx.Hash256([]byte("xh0714"))
+		err := db.InsertUser(user)
+		if err != nil {
+			return err
+		}
+		//创建私钥1
+		p1 := user.NewPrivate()
+		err = db.InsertPrivate(p1)
+		if err != nil {
+			return err
+		}
+		//创建私钥2
+		p2 := user.NewPrivate()
+		err = db.InsertPrivate(p2)
+		if err != nil {
+			return err
+		}
+		//创建 2-2证书
+		acc, err := NewAccount(db, 2, 2, false, []string{p1.Id, p2.Id})
+		if err != nil {
+			return err
+		}
+		err = db.InsertAccount(acc)
+		if err != nil {
+			return err
+		}
+		accs, err := db.ListAccounts(user.Id)
+		if err != nil {
+			return err
+		}
+		if len(accs) != 1 {
+			return errors.New("list account error")
+		}
+		//获取用户相关的账号
+		//创建区块
+		bi := xginx.NewTestBlockIndex(100, acc.GetAddress())
+		defer xginx.CloseTestBlock(bi)
 
-func TestGetAccount(t *testing.T) {
-	app := InitApp(context.Background())
-	defer app.Close()
-	err := app.UseDb(func(db IDbImp) error {
-		acc, err := db.GetAccount("st1qmwdvr706cqux5rrnltvqgh0xhmjscmzn2afune")
+		scs, err := user.ListCoins(db, bi)
 		if err != nil {
 			return err
 		}
-		act := acc.ToAccount(db)
-		log.Println(act)
-		return act.Check()
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func TestNewAccount(t *testing.T) {
-	app := InitApp(context.Background())
-	defer app.Close()
-	err := app.UseTx(func(db IDbImp) error {
-		user, err := db.GetUserInfoWithMobile("17716858036")
+		if scs.All.Balance() != 5000*xginx.COIN {
+			return errors.New("all balance error")
+		}
+		if scs.Coins.Balance() != 50*xginx.COIN {
+			return errors.New("coins balance error")
+		}
+		//删除私钥
+		err = db.DeletePrivate(p1.Id)
 		if err != nil {
 			return err
 		}
-		obj, err := user.NewAccount(3, 2, true)
+		err = db.DeletePrivate(p2.Id)
 		if err != nil {
 			return err
 		}
-		err = db.InsertAccount(obj)
+		//删除账户
+		err = db.DeleteAccount(acc.Id)
+		if err != nil {
+			return err
+		}
+		//删除用户
+		err = db.DeleteUser(user.Id)
 		if err != nil {
 			return err
 		}

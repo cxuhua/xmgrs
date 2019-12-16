@@ -27,8 +27,8 @@ type mylis struct {
 }
 
 func (lis *mylis) runHttp() {
-	lis.ctx, lis.cancel = context.WithCancel(context.Background())
-	defer lis.cancel()
+
+	lis.ctx, lis.cancel = xginx.GetContext()
 
 	db.RedisURI = config.Redis
 	db.MongoURI = config.Mongo

@@ -2,7 +2,6 @@ package db
 
 import (
 	"bytes"
-	"context"
 	"errors"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -41,7 +40,7 @@ func ToObjectID(v interface{}) primitive.ObjectID {
 }
 
 type IDbImp interface {
-	context.Context
+	mongo.SessionContext
 	//是否在事务环境下
 	IsTx() bool
 	//使用事务连接
@@ -50,20 +49,26 @@ type IDbImp interface {
 	InsertUser(obj *TUsers) error
 	//获取用户信息
 	GetUserInfo(id interface{}) (*TUsers, error)
+	//删除用户(危险)
+	DeleteUser(id interface{}) error
 	//根据手机号获取用户信息
 	GetUserInfoWithMobile(mobile string) (*TUsers, error)
 	//添加一个私钥
 	InsertPrivate(obj *TPrivate) error
 	//删除一个私钥(危险)
-	DeletePrivate(id []byte) error
+	DeletePrivate(id string) error
 	//获取私钥信息
-	GetPrivate(id []byte) (*TPrivate, error)
+	GetPrivate(id string) (*TPrivate, error)
 	//添加一个账号
 	InsertAccount(obj *TAccount) error
 	//获取账户信息
 	GetAccount(id string) (*TAccount, error)
 	//删除私钥(危险)
 	DeleteAccount(id string) error
+	//获取用户的私钥
+	ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error)
+	//获取用户相关的账号
+	ListAccounts(uid primitive.ObjectID) ([]*TAccount, error)
 }
 
 type dbimp struct {

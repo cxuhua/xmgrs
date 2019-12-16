@@ -2,52 +2,71 @@ package db
 
 import (
 	"errors"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/cxuhua/xginx"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
 	TAccountName = "accounts"
 )
 
-//从签名格式创建账户
-func (user *TUsers) NewAccount(num uint8, less uint8, arb bool) (*TAccount, error) {
-	act, err := xginx.NewAccount(num, less, arb)
+//利用多个公钥创建私钥
+func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
+	if len(ids) != int(num) {
+		return nil, errors.New("pkhs count != num")
+	}
+	pkss := []xginx.PKBytes{}
+	for idx, id := range ids {
+		pri, err := db.GetPrivate(id)
+		if err != nil {
+			return nil, fmt.Errorf("pkh idx = %d private key miss", idx)
+		}
+		pkss = append(pkss, pri.Pks)
+	}
+	acc, err := xginx.NewAccountWithPks(num, less, arb, pkss)
+	if err != nil {
+		return nil, err
+	}
+	id, err := acc.GetAddress()
 	if err != nil {
 		return nil, err
 	}
 	a := &TAccount{}
-	id, err := act.GetAddress()
-	if err != nil {
-		return nil, err
-	}
 	a.Id = string(id)
-	a.UserId = user.Id
-	a.Num = act.Num
-	a.Less = act.Less
-	a.Arb = act.Arb
-	a.Pks = act.GetPks()
-	a.pris = act.Pris
+	a.Num = acc.Num
+	a.Less = acc.Less
+	a.Arb = acc.Arb
+	a.Pks = acc.GetPks()
+	a.Pkh = acc.GetPkhs()
 	return a, nil
 }
 
 //db.accounts.ensureIndex({uid:1})
+//db.accounts.ensureIndex({pkh:1})
 //账户管理
 type TAccount struct {
-	Id     string             `bson:"_id"`
-	UserId primitive.ObjectID `bson:"uid"`
-	Num    uint8              `bson:"num"`
-	Less   uint8              `bson:"less"`
-	Arb    uint8              `bson:"arb"`
-	Pks    []xginx.PKBytes    `bson:"pks"`
-	pris   xginx.PrivatesMap  `bson:"-"`
+	Id   string          `bson:"_id"`
+	Num  uint8           `bson:"num"`
+	Less uint8           `bson:"less"`
+	Arb  uint8           `bson:"arb"`
+	Pks  []xginx.PKBytes `bson:"pks"`
+	Pkh  []xginx.HASH160 `bson:"pkh"`
+}
+
+//获取第几个私钥
+func (a TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
+	if idx < 0 || idx <= len(a.Pkh) {
+		return nil, errors.New("idx out bound")
+	}
+	id := GetPrivateId(a.Pkh[idx])
+	return db.GetPrivate(id[:])
 }
 
 //转换未xginx账户类型
-func (a *TAccount) ToAccount(db IDbImp) *xginx.Account {
+func (a *TAccount) ToAccount(db IDbImp) (*xginx.Account, error) {
 	aj := &xginx.Account{
 		Num:  a.Num,
 		Less: a.Less,
@@ -55,88 +74,56 @@ func (a *TAccount) ToAccount(db IDbImp) *xginx.Account {
 		Pubs: []*xginx.PublicKey{},
 		Pris: xginx.PrivatesMap{},
 	}
-	for _, v := range a.Pks {
-		pub, err := xginx.NewPublicKey(v.Bytes())
+	for _, pks := range a.Pks {
+		pub, err := xginx.NewPublicKey(pks.Bytes())
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		aj.Pubs = append(aj.Pubs, pub)
-		//如果获取到私钥
-		pri, err := a.GetPrivate(db, v)
-		if err == nil {
-			aj.Pris[v.Hash()] = pri.ToPrivate()
-		}
 	}
-	return aj
+	return aj, nil
 }
 
-//获取私钥信息
-func (a *TAccount) GetPrivate(db IDbImp, pks xginx.PKBytes) (*TPrivate, error) {
-	id := pks.Hash().Bytes()
-	return db.GetPrivate(id)
+func (a TAccount) GetAddress() xginx.Address {
+	return xginx.Address(a.Id)
+}
+
+func (a TAccount) GetPkh() (xginx.HASH160, error) {
+	return xginx.HashPks(a.Num, a.Less, a.Arb, a.Pks)
+}
+
+//获取账户金额
+func (a *TAccount) ListCoins(bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
+	pkh, err := a.GetPkh()
+	if err != nil {
+		return nil, err
+	}
+	spent := bi.NextHeight()
+	coins, err := bi.ListCoinsWithID(pkh)
+	if err != nil {
+		return nil, err
+	}
+	return coins.State(spent), nil
 }
 
 //获取账户信息
 func (db *dbimp) GetAccount(id string) (*TAccount, error) {
 	col := db.table(TAccountName)
-	res := col.FindOne(db, bson.M{"_id": id})
-	if res.Err() != nil {
-		return nil, res.Err()
-	}
 	a := &TAccount{}
-	err := res.Decode(a)
-	if err != nil {
-		return nil, err
-	}
-	//加载对应私钥
-	for _, v := range a.Pks {
-		pri, err := a.GetPrivate(db, v)
-		if err == nil {
-			a.pris[v.Hash()] = pri.ToPrivate()
-		}
-	}
-	return a, nil
+	err := col.FindOne(db, bson.M{"_id": id}).Decode(a)
+	return a, err
 }
 
 //删除账号
 func (db *dbimp) DeleteAccount(id string) error {
-	if !db.IsTx() {
-		return errors.New("please use tx run")
-	}
-	acc, err := db.GetAccount(id)
-	if err != nil {
-		return err
-	}
 	col := db.table(TAccountName)
-	_, err = col.DeleteOne(db, bson.M{"_id": id})
-	if err != nil {
-		return err
-	}
-	for _, v := range acc.Pks {
-		err = db.DeletePrivate(v.Hash().Bytes())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := col.DeleteOne(db, bson.M{"_id": id})
+	return err
 }
 
 //添加一个私钥
 func (db *dbimp) InsertAccount(obj *TAccount) error {
-	if !db.IsTx() {
-		return errors.New("please use tx run")
-	}
 	col := db.table(TAccountName)
 	_, err := col.InsertOne(db, obj)
-	if err != nil {
-		return err
-	}
-	for _, pri := range obj.pris {
-		dp := NewPrivate(pri)
-		err = db.InsertPrivate(dp)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return err
 }
