@@ -118,6 +118,9 @@ func (suite *TxsTestSuite) TestNewTx() {
 	suite.Assert().NoError(err)
 	err = tx.Check(bi, true)
 	suite.Assert().NoError(err)
+	stx := NewTTx(suite.user.Id, tx)
+	err = suite.db.InsertTx(stx)
+	suite.Assert().NoError(err)
 }
 
 func (suite *TxsTestSuite) TearDownTest() {
