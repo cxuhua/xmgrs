@@ -28,36 +28,36 @@ func (suite *AccountTestSuite) SetupSuite() {
 	user.Mobile = "17716858036"
 	user.Pass = xginx.Hash256([]byte("xh0714"))
 	err := suite.db.InsertUser(user)
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 	suite.user = user
 }
 
 func (suite *AccountTestSuite) SetupTest() {
-	assert.NotNil(suite.T(), suite.user, "default user miss")
+	suite.Assert().NotNil(suite.user, "default user miss")
 	p1 := suite.user.NewPrivate()
 	err := suite.db.InsertPrivate(p1)
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 	//创建私钥2
 	p2 := suite.user.NewPrivate()
 	err = suite.db.InsertPrivate(p2)
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 	//创建 2-2证书
 	acc, err := NewAccount(suite.db, 2, 2, false, []string{p1.Id, p2.Id})
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 	err = suite.db.InsertAccount(acc)
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 	suite.acc = acc
 }
 
 func (suite *AccountTestSuite) TestListCoins() {
-	assert.NotNil(suite.T(), suite.acc, "default account miss")
+	suite.Assert().NotNil(suite.acc, "default account miss")
 	bi := xginx.NewTestBlockIndex(100, suite.acc.GetAddress())
 	defer xginx.CloseTestBlock(bi)
 	//获取账户金额
 	scs, err := suite.acc.ListCoins(bi)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), scs.All.Balance(), 5000*xginx.COIN, "list account error")
-	assert.Equal(suite.T(), scs.Coins.Balance(), 50*xginx.COIN, "list account error")
+	suite.Assert().NoError(err)
+	suite.Assert().Equal(scs.All.Balance(), 5000*xginx.COIN, "list account error")
+	suite.Assert().Equal(scs.Coins.Balance(), 50*xginx.COIN, "list account error")
 }
 
 func (suite *AccountTestSuite) TearDownTest() {
@@ -65,16 +65,16 @@ func (suite *AccountTestSuite) TearDownTest() {
 	for _, v := range suite.acc.Pkh {
 		id := GetPrivateId(v)
 		err := suite.db.DeletePrivate(id)
-		assert.NoError(suite.T(), err)
+		suite.Assert().NoError(err)
 	}
 	//删除账户
 	err := suite.db.DeleteAccount(suite.acc.Id)
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 }
 
 func (suite *AccountTestSuite) TearDownSuite() {
 	err := suite.db.DeleteUser(suite.user.Id)
-	assert.NoError(suite.T(), err)
+	suite.Assert().NoError(err)
 }
 
 func TestAccounts(t *testing.T) {
