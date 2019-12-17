@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/cxuhua/xginx"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -62,13 +64,19 @@ type IDbImp interface {
 	//添加一个账号
 	InsertAccount(obj *TAccount) error
 	//获取账户信息
-	GetAccount(id string) (*TAccount, error)
+	GetAccount(id xginx.Address) (*TAccount, error)
 	//删除私钥(危险)
-	DeleteAccount(id string) error
+	DeleteAccount(id xginx.Address) error
 	//获取用户的私钥
 	ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error)
 	//获取用户相关的账号
 	ListAccounts(uid primitive.ObjectID) ([]*TAccount, error)
+	//获取交易信息
+	GetTx(id []byte) (*TAccount, error)
+	//删除交易信息
+	DeleteTx(id []byte) error
+	//插入交易信息
+	InsertTx(tx *TTx) error
 }
 
 type dbimp struct {

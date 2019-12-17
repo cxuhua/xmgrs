@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
+	"gopkg.in/go-playground/validator.v9"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +17,28 @@ import (
 const (
 	TestUserMobile = "17716858036"
 )
+
+func TestValid(t *testing.T) {
+	fn := func(ctx context.Context, fl validator.FieldLevel) bool {
+		log.Println(ctx.Value("aaa"))
+		fl.Field().SetInt(100)
+		return true
+	}
+	validate := validator.New()
+	err := validate.RegisterValidationCtx("new", fn)
+	if err != nil {
+		panic(err)
+	}
+	type x struct {
+		A int `validate:"new"`
+	}
+	ctx := context.WithValue(context.Background(), "aaa", 1000)
+	a := &x{}
+	err = validate.StructCtx(ctx, a)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func RequestJson(req *http.Request) ([]byte, error) {
 	gin.SetMode(gin.TestMode)

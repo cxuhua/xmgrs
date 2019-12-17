@@ -37,25 +37,29 @@ func (u *TUsers) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, 
 }
 
 //获取用户相关的账户
-func (db *dbimp) ListAccounts(uid primitive.ObjectID) ([]*TAccount, error) {
-	keys, err := db.ListPrivates(uid)
+func (ctx *dbimp) ListAccounts(uid primitive.ObjectID) ([]*TAccount, error) {
+	keys, err := ctx.ListPrivates(uid)
 	if err != nil {
 		return nil, err
 	}
-	col := db.table(TAccountName)
-	rmap := map[string]*TAccount{}
+	col := ctx.table(TAccountName)
+	rmap := map[xginx.Address]*TAccount{}
 	for _, v := range keys {
-		iter, err := col.Find(db, bson.M{"pkh": v.Pkh})
+		iter, err := col.Find(ctx, bson.M{"pkh": v.Pkh})
 		if err != nil {
 			return nil, err
 		}
-		for iter.Next(db) {
+		for iter.Next(ctx) {
 			a := &TAccount{}
 			err := iter.Decode(a)
 			if err != nil {
 				return nil, err
 			}
 			rmap[a.Id] = a
+		}
+		err = iter.Close(ctx)
+		if err != nil {
+			return nil, err
 		}
 	}
 	rets := []*TAccount{}
@@ -66,9 +70,9 @@ func (db *dbimp) ListAccounts(uid primitive.ObjectID) ([]*TAccount, error) {
 }
 
 //获取一个用户信息
-func (db *dbimp) GetUserInfoWithMobile(mobile string) (*TUsers, error) {
-	col := db.table(TUsersName)
-	res := col.FindOne(db, bson.M{"mobile": mobile})
+func (ctx *dbimp) GetUserInfoWithMobile(mobile string) (*TUsers, error) {
+	col := ctx.table(TUsersName)
+	res := col.FindOne(ctx, bson.M{"mobile": mobile})
 	v := &TUsers{}
 	err := res.Decode(v)
 	if err != nil {
@@ -78,27 +82,27 @@ func (db *dbimp) GetUserInfoWithMobile(mobile string) (*TUsers, error) {
 }
 
 //获取一个用户信息
-func (db *dbimp) GetUserInfo(id interface{}) (*TUsers, error) {
-	col := db.table(TUsersName)
+func (ctx *dbimp) GetUserInfo(id interface{}) (*TUsers, error) {
+	col := ctx.table(TUsersName)
 	objID := ToObjectID(id)
 	v := &TUsers{}
-	err := col.FindOne(db, bson.M{"_id": objID}).Decode(v)
+	err := col.FindOne(ctx, bson.M{"_id": objID}).Decode(v)
 	if err != nil {
 		return nil, err
 	}
 	return v, nil
 }
 
-func (db *dbimp) DeleteUser(id interface{}) error {
-	col := db.table(TUsersName)
+func (ctx *dbimp) DeleteUser(id interface{}) error {
+	col := ctx.table(TUsersName)
 	objID := ToObjectID(id)
-	_, err := col.DeleteOne(db, bson.M{"_id": objID})
+	_, err := col.DeleteOne(ctx, bson.M{"_id": objID})
 	return err
 }
 
 //添加一个用户
-func (db *dbimp) InsertUser(obj *TUsers) error {
-	col := db.table(TUsersName)
-	_, err := col.InsertOne(db, obj)
+func (ctx *dbimp) InsertUser(obj *TUsers) error {
+	col := ctx.table(TUsersName)
+	_, err := col.InsertOne(ctx, obj)
 	return err
 }

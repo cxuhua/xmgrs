@@ -75,35 +75,36 @@ func (p *TPrivate) ToPrivate() *xginx.PrivateKey {
 }
 
 //获取用户的私钥
-func (db *dbimp) ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error) {
-	col := db.table(TPrivatesName)
-	iter, err := col.Find(db, bson.M{"uid": uid})
+func (ctx *dbimp) ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error) {
+	col := ctx.table(TPrivatesName)
+	iter, err := col.Find(ctx, bson.M{"uid": uid})
 	if err != nil {
 		return nil, err
 	}
+	defer iter.Close(ctx)
 	rets := []*TPrivate{}
-	for iter.Next(db) {
-		v := TPrivate{}
-		err := iter.Decode(&v)
+	for iter.Next(ctx) {
+		v := &TPrivate{}
+		err := iter.Decode(v)
 		if err != nil {
 			return nil, err
 		}
-		rets = append(rets, &v)
+		rets = append(rets, v)
 	}
 	return rets, nil
 }
 
-func (db *dbimp) DeletePrivate(id string) error {
-	col := db.table(TPrivatesName)
-	_, err := col.DeleteOne(db, bson.M{"_id": id})
+func (ctx *dbimp) DeletePrivate(id string) error {
+	col := ctx.table(TPrivatesName)
+	_, err := col.DeleteOne(ctx, bson.M{"_id": id})
 	return err
 }
 
 //获取私钥信息
-func (db *dbimp) GetPrivate(id string) (*TPrivate, error) {
-	col := db.table(TPrivatesName)
+func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
+	col := ctx.table(TPrivatesName)
 	v := &TPrivate{}
-	err := col.FindOne(db, bson.M{"_id": id}).Decode(v)
+	err := col.FindOne(ctx, bson.M{"_id": id}).Decode(v)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +112,12 @@ func (db *dbimp) GetPrivate(id string) (*TPrivate, error) {
 }
 
 //添加一个私钥
-func (db *dbimp) InsertPrivate(obj *TPrivate) error {
-	_, err := db.GetPrivate(obj.Id)
+func (ctx *dbimp) InsertPrivate(obj *TPrivate) error {
+	_, err := ctx.GetPrivate(obj.Id)
 	if err == nil {
 		return errors.New("private exists")
 	}
-	col := db.table(TPrivatesName)
-	_, err = col.InsertOne(db, obj)
+	col := ctx.table(TPrivatesName)
+	_, err = col.InsertOne(ctx, obj)
 	return err
 }
