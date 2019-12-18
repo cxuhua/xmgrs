@@ -19,6 +19,11 @@ type TUsers struct {
 	Token  string             `bson:"token"`
 }
 
+//获取用户相关的账号
+func (u *TUsers) ListAccounts(db IDbImp) ([]*TAccount, error) {
+	return db.ListAccounts(u.Id)
+}
+
 //获取用户余额
 func (u *TUsers) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
 	accs, err := db.ListAccounts(u.Id)

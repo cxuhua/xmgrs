@@ -56,28 +56,6 @@ type TAccount struct {
 	Pkh  []xginx.HASH160 `bson:"pkh"`
 }
 
-//生成脚本签名
-func (a TAccount) Sign(db IDbImp, signer xginx.ISigner) (*xginx.WitnessScript, error) {
-	hv, err := signer.GetSigHash()
-	if err != nil {
-		return nil, err
-	}
-	wits := a.ToAccount().NewWitnessScript()
-	for _, pkh := range a.Pkh {
-		id := GetPrivateId(pkh)
-		pri, err := db.GetPrivate(id)
-		if err != nil {
-			continue
-		}
-		sig, err := pri.ToPrivate().Sign(hv)
-		if err != nil {
-			return nil, err
-		}
-		wits.Sig = append(wits.Sig, sig.GetSigs())
-	}
-	return wits, nil
-}
-
 //获取第几个私钥
 func (a TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 	if idx < 0 || idx <= len(a.Pkh) {

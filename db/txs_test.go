@@ -19,125 +19,98 @@ type TxsTestSuite struct {
 	acc  *TAccount
 }
 
-func (suite *TxsTestSuite) SetupSuite() {
+func (st *TxsTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
 	user := &TUsers{}
 	user.Id = primitive.NewObjectID()
 	user.Mobile = "17716858036"
 	user.Pass = xginx.Hash256([]byte("xh0714"))
-	err := suite.db.InsertUser(user)
-	suite.Assert().NoError(err)
-	suite.user = user
+	err := st.db.InsertUser(user)
+	st.Assert().NoError(err)
+	st.user = user
 }
 
-func (suite *TxsTestSuite) SetupTest() {
-	suite.Assert().NotNil(suite.user, "default user miss")
-	p1 := suite.user.NewPrivate()
-	err := suite.db.InsertPrivate(p1)
-	suite.Assert().NoError(err)
+func (st *TxsTestSuite) SetupTest() {
+	st.Assert().NotNil(st.user, "default user miss")
+	p1 := st.user.NewPrivate()
+	err := st.db.InsertPrivate(p1)
+	st.Assert().NoError(err)
 	//创建私钥2
-	p2 := suite.user.NewPrivate()
-	err = suite.db.InsertPrivate(p2)
-	suite.Assert().NoError(err)
+	p2 := st.user.NewPrivate()
+	err = st.db.InsertPrivate(p2)
+	st.Assert().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(suite.db, 2, 2, false, []string{p1.Id, p2.Id})
-	suite.Assert().NoError(err)
-	err = suite.db.InsertAccount(acc)
-	suite.Assert().NoError(err)
-	suite.acc = acc
+	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
+	st.Assert().NoError(err)
+	err = st.db.InsertAccount(acc)
+	st.Assert().NoError(err)
+	st.acc = acc
 }
 
-//获取金额对应的账户方法
-func (suite *TxsTestSuite) GetAcc(ckv *xginx.CoinKeyValue) *xginx.Account {
-	return suite.acc.ToAccount()
-}
-
-//获取输出地址的扩展
-func (suite *TxsTestSuite) GetExt(addr xginx.Address) []byte {
-	return nil
-}
-
-//获取使用的金额
-func (suite *TxsTestSuite) GetCoins() xginx.Coins {
-	bi := xginx.GetBlockIndex()
-	ds, err := suite.acc.ListCoins(bi)
-	if err != nil {
-		return nil
-	}
-	return ds.Coins
-}
-
-//获取找零地址
-func (suite *TxsTestSuite) GetKeep() xginx.Address {
-	return suite.acc.GetAddress()
-}
-
-//签名交易
-func (suite *TxsTestSuite) SignTx(singer xginx.ISigner) error {
-	_, in, out := singer.GetObjs()
-	addr, err := out.Script.GetAddress()
-	if err != nil {
-		return err
-	}
-	acc, err := suite.db.GetAccount(addr)
-	if err != nil {
-		return err
-	}
-	wits, err := acc.Sign(suite.db, singer)
-	if err != nil {
-		return err
-	}
-	script, err := wits.ToScript()
-	if err != nil {
-		return err
-	}
-	in.Script = script
-	return nil
-}
-
-func (suite *TxsTestSuite) TestNewTx() {
-	suite.Assert().NotNil(suite.acc, "default account miss")
-	bi := xginx.NewTestBlockIndex(100, suite.acc.GetAddress())
+func (st *TxsTestSuite) TestNewTx() {
+	st.Require().NotNil(st.acc, "default account miss")
+	bi := xginx.NewTestBlockIndex(100, st.acc.GetAddress())
 	defer xginx.CloseTestBlock(bi)
 	//获取账户金额
-	ds, err := suite.acc.ListCoins(bi)
-	suite.Assert().NoError(err)
-	suite.Assert().Equal(len(ds.Coins), 1, "coins miss")
+	ds, err := st.acc.ListCoins(bi)
+	st.Require().NoError(err)
+	st.Require().Equal(len(ds.Coins), 1, "coins miss")
 	accs := xginx.GetTestAccount(bi)
-	suite.Assert().NotNil(accs, "get test accounts error")
+	st.Require().NotNil(accs, "get test accounts error")
 	dst, err := accs[1].GetAddress()
-	suite.Assert().NoError(err)
+	st.Require().NoError(err)
+	//创建签名处理lis
+	lis := NewSignListener(st.db, st.user)
 	//生成交易
-	mi := bi.NewTrans(suite)
-	mi.Dst = []xginx.Address{dst}
-	mi.Amts = []xginx.Amount{1 * xginx.COIN}
+	mi := bi.NewTrans(lis)
+	mi.Add(dst, 1*xginx.COIN)
 	mi.Fee = 1000
 	tx, err := mi.NewTx()
-	suite.Assert().NoError(err)
-	err = tx.Sign(bi, suite)
-	suite.Assert().NoError(err)
-	err = tx.Check(bi, true)
-	suite.Assert().NoError(err)
-	stx := NewTTx(suite.user.Id, tx)
-	err = suite.db.InsertTx(stx)
-	suite.Assert().NoError(err)
+	st.Require().NoError(err)
+	//分析需要签名的输入存入数据库
+	err = tx.Sign(bi, lis)
+	st.Require().NoError(err)
+	sigs := lis.GetSigs()
+	if len(sigs) != 2 {
+		st.Require().FailNow("sigs count error for 2-2")
+	}
+	//保存数据
+	stx := NewTTx(st.user.Id, tx)
+	err = st.db.InsertTx(stx)
+	st.Require().NoError(err)
+	err = lis.SaveSigs()
+	st.Require().NoError(err)
+	//执行签名
+	for _, sig := range sigs {
+		err = sig.Sign(st.db)
+		st.Require().NoError(err)
+	}
+	//转换合并签名
+	ntx, err := stx.ToTx(st.db, bi)
+	st.Require().NoError(err)
+
+	st.Require().Equal(ntx.MustID().Bytes(), stx.Id, "id error")
+	//从数据库获取签名
+	//
+	err = st.db.DeleteTx(stx.Id)
+	st.Require().NoError(err)
 }
 
-func (suite *TxsTestSuite) TearDownTest() {
+func (st *TxsTestSuite) TearDownTest() {
 	//删除私钥
-	for _, v := range suite.acc.Pkh {
+	for _, v := range st.acc.Pkh {
 		id := GetPrivateId(v)
-		err := suite.db.DeletePrivate(id)
-		suite.Assert().NoError(err)
+		err := st.db.DeletePrivate(id)
+		st.Require().NoError(err)
 	}
 	//删除账户
-	err := suite.db.DeleteAccount(suite.acc.Id)
-	suite.Assert().NoError(err)
+	err := st.db.DeleteAccount(st.acc.Id)
+	st.Require().NoError(err)
 }
 
-func (suite *TxsTestSuite) TearDownSuite() {
-	err := suite.db.DeleteUser(suite.user.Id)
-	suite.Assert().NoError(err)
+func (st *TxsTestSuite) TearDownSuite() {
+	err := st.db.DeleteUser(st.user.Id)
+	st.Require().NoError(err)
 }
 
 func TestTxsSuite(t *testing.T) {

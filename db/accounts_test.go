@@ -21,60 +21,60 @@ type AccountTestSuite struct {
 	acc  *TAccount
 }
 
-func (suite *AccountTestSuite) SetupSuite() {
+func (st *AccountTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
 	user := &TUsers{}
 	user.Id = primitive.NewObjectID()
 	user.Mobile = "17716858036"
 	user.Pass = xginx.Hash256([]byte("xh0714"))
-	err := suite.db.InsertUser(user)
-	suite.Assert().NoError(err)
-	suite.user = user
+	err := st.db.InsertUser(user)
+	st.Assert().NoError(err)
+	st.user = user
 }
 
-func (suite *AccountTestSuite) SetupTest() {
-	suite.Assert().NotNil(suite.user, "default user miss")
-	p1 := suite.user.NewPrivate()
-	err := suite.db.InsertPrivate(p1)
-	suite.Assert().NoError(err)
+func (st *AccountTestSuite) SetupTest() {
+	st.Assert().NotNil(st.user, "default user miss")
+	p1 := st.user.NewPrivate()
+	err := st.db.InsertPrivate(p1)
+	st.Assert().NoError(err)
 	//创建私钥2
-	p2 := suite.user.NewPrivate()
-	err = suite.db.InsertPrivate(p2)
-	suite.Assert().NoError(err)
+	p2 := st.user.NewPrivate()
+	err = st.db.InsertPrivate(p2)
+	st.Assert().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(suite.db, 2, 2, false, []string{p1.Id, p2.Id})
-	suite.Assert().NoError(err)
-	err = suite.db.InsertAccount(acc)
-	suite.Assert().NoError(err)
-	suite.acc = acc
+	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
+	st.Assert().NoError(err)
+	err = st.db.InsertAccount(acc)
+	st.Assert().NoError(err)
+	st.acc = acc
 }
 
-func (suite *AccountTestSuite) TestListCoins() {
-	suite.Assert().NotNil(suite.acc, "default account miss")
-	bi := xginx.NewTestBlockIndex(100, suite.acc.GetAddress())
+func (st *AccountTestSuite) TestListCoins() {
+	st.Assert().NotNil(st.acc, "default account miss")
+	bi := xginx.NewTestBlockIndex(100, st.acc.GetAddress())
 	defer xginx.CloseTestBlock(bi)
 	//获取账户金额
-	scs, err := suite.acc.ListCoins(bi)
-	suite.Assert().NoError(err)
-	suite.Assert().Equal(scs.All.Balance(), 5000*xginx.COIN, "list account error")
-	suite.Assert().Equal(scs.Coins.Balance(), 50*xginx.COIN, "list account error")
+	scs, err := st.acc.ListCoins(bi)
+	st.Assert().NoError(err)
+	st.Assert().Equal(scs.All.Balance(), 5000*xginx.COIN, "list account error")
+	st.Assert().Equal(scs.Coins.Balance(), 50*xginx.COIN, "list account error")
 }
 
-func (suite *AccountTestSuite) TearDownTest() {
+func (st *AccountTestSuite) TearDownTest() {
 	//删除私钥
-	for _, v := range suite.acc.Pkh {
+	for _, v := range st.acc.Pkh {
 		id := GetPrivateId(v)
-		err := suite.db.DeletePrivate(id)
-		suite.Assert().NoError(err)
+		err := st.db.DeletePrivate(id)
+		st.Assert().NoError(err)
 	}
 	//删除账户
-	err := suite.db.DeleteAccount(suite.acc.Id)
-	suite.Assert().NoError(err)
+	err := st.db.DeleteAccount(st.acc.Id)
+	st.Assert().NoError(err)
 }
 
-func (suite *AccountTestSuite) TearDownSuite() {
-	err := suite.db.DeleteUser(suite.user.Id)
-	suite.Assert().NoError(err)
+func (st *AccountTestSuite) TearDownSuite() {
+	err := st.db.DeleteUser(st.user.Id)
+	st.Assert().NoError(err)
 }
 
 func TestAccounts(t *testing.T) {

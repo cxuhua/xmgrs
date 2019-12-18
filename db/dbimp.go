@@ -77,6 +77,14 @@ type IDbImp interface {
 	DeleteTx(id []byte) error
 	//插入交易信息
 	InsertTx(tx *TTx) error
+	//保存签名对象
+	InsertSigs(sigs *TSigs) error
+	//设置签名
+	SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error
+	//获取交易管理的签名对象
+	ListSigs(tid []byte) (TxSigs, error)
+	//获取签名对象
+	GetSigs(tid []byte, kid string, hash []byte) (*TSigs, error)
 }
 
 type dbimp struct {
