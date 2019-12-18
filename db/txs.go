@@ -154,7 +154,7 @@ func (ss TxSigs) IsSign() bool {
 //db.txs.ensureIndex({uid:1})
 type TTx struct {
 	Id       []byte             `bson:"_id"`
-	UserId   primitive.ObjectID `bson:"uid"`
+	UserId   primitive.ObjectID `bson:"uid"` //谁创建的交易
 	Ver      uint32             `bson:"ver"`
 	Ins      []TTxIn            `bson:"ins"`
 	Outs     []TTxOut           `bson:"outs"`
