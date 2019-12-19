@@ -66,7 +66,6 @@ func (user *TUsers) NewPrivate(db IDbImp) (*TPrivate, error) {
 	return ptr, nil
 }
 
-//db.privates.ensureIndex({uid:1})
 //私钥管理
 type TPrivate struct {
 	Id     string             `bson:"_id"`    //hash160作为id

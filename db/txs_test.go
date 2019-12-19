@@ -65,13 +65,21 @@ func (st *TxsTestSuite) TestNewTx() {
 	if len(sigs) != 2 {
 		st.Require().FailNow("sigs count error for 2-2")
 	}
-	stx, err := st.user.SaveTx(st.db, tx, lis)
+	stx, err := st.user.SaveTx(st.db, tx, lis, "这个2-2签名交易")
 	st.Require().NoError(err)
+	//获取用户需要签名的交易
+	txs, err := st.user.ListTxs(st.db, false)
+	st.Require().NoError(err)
+	st.Require().Equal(len(txs), 1, "txs error")
 	//执行签名
 	for _, sig := range sigs {
 		err = sig.Sign(st.db)
 		st.Require().NoError(err)
 	}
+	//获取用户不需要签名的交易
+	txs, err = st.user.ListTxs(st.db, true)
+	st.Require().NoError(err)
+	st.Require().Equal(len(txs), 1, "txs error")
 	//转换合并签名
 	ntx, err := stx.ToTx(st.db, bi)
 	st.Require().NoError(err)

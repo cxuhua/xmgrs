@@ -12,14 +12,26 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+/*
+//数据库索引
+db.accounts.ensureIndex({uid:1})
+db.accounts.ensureIndex({pkh:1})
+db.privates.ensureIndex({uid:1})
+db.txs.ensureIndex({uid:1})
+db.users.ensureIndex({mobile:1})
+db.sigs.ensureIndex({tid:1})
+db.sigs.ensureIndex({uid:1})
+*/
+
 var (
 	//连接字符串设置
 	RedisURI = "redis://127.0.0.1:6379"
-	MongoURI = "mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019"
+	//数据库连接字符串
+	MongoURI = "mongodb://127.0.0.1:27017"
 	//连接池设置
 	MaxPoolSize = uint64(2000)
 	MinPoolSize = uint64(10)
-	//默认超时世界
+	//默认数据库操作超时时间
 	DbTimeout = time.Second * 30
 )
 

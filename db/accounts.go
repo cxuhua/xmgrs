@@ -44,8 +44,6 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAcc
 	return a, nil
 }
 
-//db.accounts.ensureIndex({uid:1})
-//db.accounts.ensureIndex({pkh:1})
 //账户管理
 type TAccount struct {
 	Id   xginx.Address   `bson:"_id"`

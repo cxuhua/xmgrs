@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -101,7 +102,11 @@ func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
 	}
 	for _, pkh := range acc.Pkh {
 		kid := GetPrivateId(pkh)
-		sigs := NewSigs(tid, kid, hash)
+		pk, err := st.db.GetPrivate(kid)
+		if err != nil {
+			return err
+		}
+		sigs := NewSigs(tid, pk.UserId, pk.Id, hash)
 		st.sigs = append(st.sigs, sigs)
 	}
 	return nil
@@ -120,9 +125,9 @@ type TTxOut struct {
 }
 
 //保存私钥id 需要签名的hash 并且标记是否已经签名
-//db.sigs.ensureIndex({tid:1})
 type TSigs struct {
 	Id     primitive.ObjectID `bson:"_id"`  //id
+	UserId primitive.ObjectID `bson:"uid"`  //私钥所属用户
 	TxId   xginx.HASH256      `bson:"tid"`  //交易id
 	KeyId  string             `bson:"kid"`  //私钥id
 	Hash   []byte             `bson:"hash"` //签名hash
@@ -159,7 +164,6 @@ func (ss TxSigs) IsSign() bool {
 	return true
 }
 
-//db.txs.ensureIndex({uid:1})
 type TTx struct {
 	Id       []byte             `bson:"_id"`
 	UserId   primitive.ObjectID `bson:"uid"` //谁创建的交易
@@ -167,12 +171,14 @@ type TTx struct {
 	Ins      []TTxIn            `bson:"ins"`
 	Outs     []TTxOut           `bson:"outs"`
 	LockTime uint32             `bson:"lt"`
+	Desc     string             `bson:"desc"`
 }
 
 //创建待签名对象
-func NewSigs(tid xginx.HASH256, kid string, hash []byte) *TSigs {
+func NewSigs(tid xginx.HASH256, uid primitive.ObjectID, kid string, hash []byte) *TSigs {
 	sigs := &TSigs{}
 	sigs.Id = primitive.NewObjectID()
+	sigs.UserId = uid
 	sigs.TxId = tid
 	sigs.KeyId = kid
 	sigs.Hash = hash
@@ -267,11 +273,14 @@ func (u *TUsers) NewTTx(tx *xginx.TX) *TTx {
 	return NewTTx(u.Id, tx)
 }
 
-func (u *TUsers) SaveTx(db IDbImp, tx *xginx.TX, lis ISaveSigs) (*TTx, error) {
+func (u *TUsers) SaveTx(db IDbImp, tx *xginx.TX, lis ISaveSigs, desc ...string) (*TTx, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
 	stx := u.NewTTx(tx)
+	if len(desc) > 0 {
+		stx.Desc = strings.Join(desc, "")
+	}
 	err := db.InsertTx(stx)
 	if err != nil {
 		return nil, err
@@ -301,6 +310,37 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 	}
 	v.UserId = uid
 	return v
+}
+
+//获取用户需要处理的交易
+func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error) {
+	ids := map[xginx.HASH256]bool{}
+	col := ctx.table(TSigName)
+	iter, err := col.Find(ctx, bson.M{"uid": uid, "sigb": sign})
+	if err != nil {
+		return nil, err
+	}
+	for iter.Next(ctx) {
+		v := &TSigs{}
+		err := iter.Decode(v)
+		if err != nil {
+			return nil, err
+		}
+		ids[v.TxId] = true
+	}
+	err = iter.Close(ctx)
+	if err != nil {
+		return nil, err
+	}
+	txs := []*TTx{}
+	for tid, _ := range ids {
+		tx, err := ctx.GetTx(tid[:])
+		if err != nil {
+			continue
+		}
+		txs = append(txs, tx)
+	}
+	return txs, nil
 }
 
 //设置签名内容
@@ -347,9 +387,9 @@ func (ctx *dbimp) InsertSigs(sigs *TSigs) error {
 }
 
 //获取账户信息
-func (ctx *dbimp) GetTx(id []byte) (*TAccount, error) {
+func (ctx *dbimp) GetTx(id []byte) (*TTx, error) {
 	col := ctx.table(TTxName)
-	a := &TAccount{}
+	a := &TTx{}
 	err := col.FindOne(ctx, bson.M{"_id": id}).Decode(a)
 	return a, err
 }

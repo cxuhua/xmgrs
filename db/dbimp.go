@@ -72,7 +72,7 @@ type IDbImp interface {
 	//获取用户相关的账号
 	ListAccounts(uid primitive.ObjectID) ([]*TAccount, error)
 	//获取交易信息
-	GetTx(id []byte) (*TAccount, error)
+	GetTx(id []byte) (*TTx, error)
 	//删除交易信息
 	DeleteTx(id []byte) error
 	//插入交易信息
@@ -85,6 +85,8 @@ type IDbImp interface {
 	ListSigs(tid xginx.HASH256) (TxSigs, error)
 	//获取签名对象
 	GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, error)
+	//获取用户需要签名的交易
+	ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 }
 
 type dbimp struct {

@@ -13,7 +13,6 @@ const (
 	TUsersName = "users"
 )
 
-//db.users.ensureIndex({mobile:1})
 //用户管理
 type TUsers struct {
 	Id     primitive.ObjectID `bson:"_id"`
@@ -51,6 +50,10 @@ func (u TUsers) SeedKey() (*xginx.PrivateKey, error) {
 		return nil, err
 	}
 	return pri, nil
+}
+
+func (u *TUsers) ListTxs(db IDbImp, sign bool) ([]*TTx, error) {
+	return db.ListUserTxs(u.Id, sign)
 }
 
 //获取用户相关的账号
