@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
 	"github.com/cxuhua/xginx"
 )
 
@@ -23,10 +21,7 @@ type AccountTestSuite struct {
 
 func (st *AccountTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
-	user := &TUsers{}
-	user.Id = primitive.NewObjectID()
-	user.Mobile = "17716858036"
-	user.Pass = xginx.Hash256([]byte("xh0714"))
+	user := NewUser("17716858036", []byte("xh0714"))
 	err := st.db.InsertUser(user)
 	st.Assert().NoError(err)
 	st.user = user
@@ -34,12 +29,10 @@ func (st *AccountTestSuite) SetupSuite() {
 
 func (st *AccountTestSuite) SetupTest() {
 	st.Assert().NotNil(st.user, "default user miss")
-	p1 := st.user.NewPrivate()
-	err := st.db.InsertPrivate(p1)
+	p1, err := st.user.NewPrivate(st.db)
 	st.Assert().NoError(err)
 	//创建私钥2
-	p2 := st.user.NewPrivate()
-	err = st.db.InsertPrivate(p2)
+	p2, err := st.user.NewPrivate(st.db)
 	st.Assert().NoError(err)
 	//创建 2-2证书
 	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})

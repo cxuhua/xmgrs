@@ -40,12 +40,30 @@ func NewPrivate(uid primitive.ObjectID, pri *xginx.PrivateKey) *TPrivate {
 	return dp
 }
 
-func (user *TUsers) NewPrivate() *TPrivate {
-	pri, err := xginx.NewPrivateKey()
-	if err != nil {
-		panic(err)
+//新建并写入私钥
+func (user *TUsers) NewPrivate(db IDbImp) (*TPrivate, error) {
+	if !db.IsTx() {
+		return nil, errors.New("need use tx")
 	}
-	return NewPrivate(user.Id, pri)
+	var pri *xginx.PrivateKey
+	last, err := db.GetPrivate(user.Last)
+	if err != nil {
+		pri, err = user.SeedKey()
+	} else {
+		pri, err = last.ToPrivate()
+	}
+	if err != nil {
+		return nil, err
+	}
+	pri = pri.New(user.Prefix)
+	ptr := NewPrivate(user.Id, pri)
+	err = db.InsertPrivate(ptr)
+	if err != nil {
+		return nil, err
+	}
+	user.Last = ptr.Id
+	user.Count++
+	return ptr, nil
 }
 
 //db.privates.ensureIndex({uid:1})
@@ -56,7 +74,7 @@ type TPrivate struct {
 	Cipher CipherType         `bson:"cipher"` //加密方式
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
-	Pri    []byte             `bson:"pri"`    //私钥
+	Pri    []byte             `bson:"pri"`    //私钥数据
 }
 
 func (p *TPrivate) GetPkh() xginx.HASH160 {
@@ -65,13 +83,14 @@ func (p *TPrivate) GetPkh() xginx.HASH160 {
 	return id
 }
 
-func (p *TPrivate) ToPrivate() *xginx.PrivateKey {
+//pw 根据加密方式暂时解密生成私钥对象
+func (p *TPrivate) ToPrivate(pw ...string) (*xginx.PrivateKey, error) {
 	pri := &xginx.PrivateKey{}
 	err := pri.Decode(p.Pri)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return pri
+	return pri, nil
 }
 
 //获取用户的私钥
@@ -113,11 +132,20 @@ func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
 
 //添加一个私钥
 func (ctx *dbimp) InsertPrivate(obj *TPrivate) error {
+	if !ctx.IsTx() {
+		return errors.New("need tx")
+	}
 	_, err := ctx.GetPrivate(obj.Id)
 	if err == nil {
 		return errors.New("private exists")
 	}
-	col := ctx.table(TPrivatesName)
+	col := ctx.table(TUsersName)
+	doc := bson.M{"$set": bson.M{"last": obj.Id}, "$inc": bson.M{"count": 1}}
+	_, err = col.UpdateOne(ctx, bson.M{"_id": obj.UserId}, doc)
+	if err != nil {
+		return err
+	}
+	col = ctx.table(TPrivatesName)
 	_, err = col.InsertOne(ctx, obj)
 	return err
 }

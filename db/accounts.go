@@ -18,15 +18,15 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAcc
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
-	pkss := []xginx.PKBytes{}
+	pks := []xginx.PKBytes{}
 	for idx, id := range ids {
 		pri, err := db.GetPrivate(id)
 		if err != nil {
 			return nil, fmt.Errorf("pkh idx = %d private key miss", idx)
 		}
-		pkss = append(pkss, pri.Pks)
+		pks = append(pks, pri.Pks)
 	}
-	acc, err := xginx.NewAccountWithPks(num, less, arb, pkss)
+	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (a *TAccount) ToAccount() *xginx.Account {
 }
 
 func (a TAccount) GetAddress() xginx.Address {
-	return xginx.Address(a.Id)
+	return a.Id
 }
 
 func (a TAccount) GetPkh() (xginx.HASH160, error) {

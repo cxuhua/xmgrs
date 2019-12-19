@@ -8,7 +8,6 @@ import (
 	"github.com/cxuhua/xginx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type TxsTestSuite struct {
@@ -21,29 +20,24 @@ type TxsTestSuite struct {
 
 func (st *TxsTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
-	user := &TUsers{}
-	user.Id = primitive.NewObjectID()
-	user.Mobile = "17716858036"
-	user.Pass = xginx.Hash256([]byte("xh0714"))
+	user := NewUser("17716858036", []byte("xh0714"))
 	err := st.db.InsertUser(user)
-	st.Assert().NoError(err)
+	st.Require().NoError(err)
 	st.user = user
 }
 
 func (st *TxsTestSuite) SetupTest() {
-	st.Assert().NotNil(st.user, "default user miss")
-	p1 := st.user.NewPrivate()
-	err := st.db.InsertPrivate(p1)
-	st.Assert().NoError(err)
+	st.Require().NotNil(st.user, "default user miss")
+	p1, err := st.user.NewPrivate(st.db)
+	st.Require().NoError(err)
 	//创建私钥2
-	p2 := st.user.NewPrivate()
-	err = st.db.InsertPrivate(p2)
-	st.Assert().NoError(err)
+	p2, err := st.user.NewPrivate(st.db)
+	st.Require().NoError(err)
 	//创建 2-2证书
 	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
-	st.Assert().NoError(err)
+	st.Require().NoError(err)
 	err = st.db.InsertAccount(acc)
-	st.Assert().NoError(err)
+	st.Require().NoError(err)
 	st.acc = acc
 }
 
@@ -67,18 +61,11 @@ func (st *TxsTestSuite) TestNewTx() {
 	mi.Fee = 1000
 	tx, err := mi.NewTx()
 	st.Require().NoError(err)
-	//分析需要签名的输入存入数据库
-	err = tx.Sign(bi, lis)
-	st.Require().NoError(err)
 	sigs := lis.GetSigs()
 	if len(sigs) != 2 {
 		st.Require().FailNow("sigs count error for 2-2")
 	}
-	//保存数据
-	stx := NewTTx(st.user.Id, tx)
-	err = st.db.InsertTx(stx)
-	st.Require().NoError(err)
-	err = lis.SaveSigs()
+	stx, err := st.user.SaveTx(st.db, tx, lis)
 	st.Require().NoError(err)
 	//执行签名
 	for _, sig := range sigs {

@@ -1,6 +1,9 @@
 package db
 
 import (
+	"crypto/rand"
+	"errors"
+
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,8 +18,39 @@ const (
 type TUsers struct {
 	Id     primitive.ObjectID `bson:"_id"`
 	Mobile string             `bson:"mobile"`
-	Pass   []byte             `bson:"pass"` //hash256密钥
+	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
+	Seed   []byte             `bson:"seed"`   //种子私钥
+	Prefix []byte             `bson:"prefix"` //私钥前缀，备份私钥需要 seed和这个前缀
+	Last   string             `bson:"last"`   //创建的最后一个私钥id,保存私钥的时候一起保存
+	Count  int                `bson:"count"`  //创建的数量
 	Token  string             `bson:"token"`
+}
+
+func NewUser(mobile string, pass []byte) *TUsers {
+	pri, err := xginx.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	u := &TUsers{}
+	u.Id = primitive.NewObjectID()
+	u.Mobile = mobile
+	u.Seed = pri.Encode()
+	u.Prefix = make([]byte, 64)
+	_, err = rand.Read(u.Prefix)
+	if err != nil {
+		panic(err)
+	}
+	u.Pass = xginx.Hash256From(pass)
+	return u
+}
+
+func (u TUsers) SeedKey() (*xginx.PrivateKey, error) {
+	pri := &xginx.PrivateKey{}
+	err := pri.Decode(u.Seed)
+	if err != nil {
+		return nil, err
+	}
+	return pri, nil
 }
 
 //获取用户相关的账号
@@ -99,15 +133,24 @@ func (ctx *dbimp) GetUserInfo(id interface{}) (*TUsers, error) {
 }
 
 func (ctx *dbimp) DeleteUser(id interface{}) error {
-	col := ctx.table(TUsersName)
-	objID := ToObjectID(id)
-	_, err := col.DeleteOne(ctx, bson.M{"_id": objID})
+	uid := ToObjectID(id)
+	col := ctx.table(TPrivatesName)
+	_, err := col.DeleteMany(ctx, bson.M{"uid": uid})
+	if err != nil {
+		return err
+	}
+	col = ctx.table(TUsersName)
+	_, err = col.DeleteOne(ctx, bson.M{"_id": uid})
 	return err
 }
 
 //添加一个用户
 func (ctx *dbimp) InsertUser(obj *TUsers) error {
+	_, err := ctx.GetUserInfoWithMobile(obj.Mobile)
+	if err == nil {
+		return errors.New("user exists")
+	}
 	col := ctx.table(TUsersName)
-	_, err := col.InsertOne(ctx, obj)
+	_, err = col.InsertOne(ctx, obj)
 	return err
 }

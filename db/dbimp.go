@@ -82,9 +82,9 @@ type IDbImp interface {
 	//设置签名
 	SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error
 	//获取交易管理的签名对象
-	ListSigs(tid []byte) (TxSigs, error)
+	ListSigs(tid xginx.HASH256) (TxSigs, error)
 	//获取签名对象
-	GetSigs(tid []byte, kid string, hash []byte) (*TSigs, error)
+	GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, error)
 }
 
 type dbimp struct {
