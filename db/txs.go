@@ -191,7 +191,7 @@ type setsigner struct {
 	db IDbImp //db接口
 }
 
-//查询签名数据并设置
+//查询签名数据并设置脚本
 func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	tx, in, out := singer.GetObjs()
 	tid, err := tx.ID()
@@ -206,11 +206,13 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	if err != nil {
 		return err
 	}
+	//创建脚本
 	wits := acc.ToAccount().NewWitnessScript()
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
 	}
+	//获取每个密钥的签名
 	for idx, pkh := range acc.Pkh {
 		kid := GetPrivateId(pkh)
 		sigs, err := st.db.GetSigs(tid, kid, hash)
@@ -223,10 +225,7 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 		}
 		wits.Sig = append(wits.Sig, sigs.Sigs)
 	}
-	//检测签名脚本
-	if err := wits.Check(); err != nil {
-		return err
-	}
+	//检测签名脚本并返回脚本
 	script, err := wits.ToScript()
 	if err != nil {
 		return err
