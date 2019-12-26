@@ -15,10 +15,9 @@ const (
 type CipherType int
 
 const (
-	CipherTypeNone CipherType = 0
-	CipherTypeAes  CipherType = 1
-
-	PrivateIDPrefix = "kp"
+	CipherTypeNone  CipherType = 0
+	CipherTypeAes   CipherType = 1
+	PrivateIDPrefix            = "kp"
 )
 
 func GetPrivateId(pkh xginx.HASH160) string {

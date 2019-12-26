@@ -1,9 +1,13 @@
 package db
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"sync"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/gin-gonic/gin"
 
@@ -40,6 +44,39 @@ var (
 	rediscli *redis.Client
 	mongocli *mongo.Client
 )
+
+//两个id是否相等
+func ObjectIDEqual(v1 primitive.ObjectID, v2 primitive.ObjectID) bool {
+	return bytes.Equal(v1[:], v2[:])
+}
+
+func ToObjectID(v interface{}) primitive.ObjectID {
+	switch v.(type) {
+	case primitive.ObjectID:
+		return v.(primitive.ObjectID)
+	case string:
+		id, err := primitive.ObjectIDFromHex(v.(string))
+		if err != nil {
+			panic(err)
+		}
+		return id
+	case []byte:
+		bs := v.([]byte)
+		id := primitive.ObjectID{}
+		copy(id[:], bs)
+		return id
+	default:
+		panic(errors.New("v to ObjectID error"))
+	}
+}
+
+type IAppDbImp interface {
+	mongo.SessionContext
+	//是否在事务环境下
+	IsTx() bool
+	//使用事务连接
+	UseTx(fn func(ctx IDbImp) error) error
+}
 
 type App struct {
 	context.Context
