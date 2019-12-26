@@ -50,7 +50,7 @@ func (st *DbSignListener) SaveSigs() error {
 	return nil
 }
 
-//获取金额对应的账户方法
+//获取金额对应的账户
 func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) *xginx.Account {
 	acc, err := st.db.GetAccount(ckv.GetAddress())
 	if err != nil {
@@ -260,6 +260,7 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 	if err != nil {
 		return nil, err
 	}
+	//校验交易
 	err = tx.Check(bi, true)
 	if err != nil {
 		return nil, err
@@ -284,6 +285,7 @@ func (u *TUsers) SaveTx(db IDbImp, tx *xginx.TX, lis ISaveSigs, desc ...string) 
 	if err != nil {
 		return nil, err
 	}
+	//保存签名
 	return stx, lis.SaveSigs()
 }
 
