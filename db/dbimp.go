@@ -74,7 +74,7 @@ func (db *dbimp) UseTx(fn func(db IDbImp) error) error {
 		return errors.New("tx db can't invoke Transaction")
 	}
 	_, err := db.WithTransaction(db, func(sdb mongo.SessionContext) (i interface{}, err error) {
-		imp := newMongoRedisImp(sdb, db.redv, true)
+		imp := NewDbImp(sdb, db.redv, true)
 		return nil, fn(imp)
 	})
 	return err
@@ -84,7 +84,7 @@ func (db *dbimp) IsTx() bool {
 	return db.isTx
 }
 
-func newMongoRedisImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
+func NewDbImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,
 		redv:           redv,

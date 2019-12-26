@@ -98,7 +98,7 @@ func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error
 		conn := rediscli.Conn()
 		defer conn.Close()
 		//创建数据对象
-		return fn(newMongoRedisImp(sctx, conn, false))
+		return fn(NewDbImp(sctx, conn, false))
 	})
 }
 
