@@ -33,7 +33,7 @@ func TestAddUsers(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if u.Count != 2 {
+		if u.Deter.Index != 2 {
 			return errors.New("count error")
 		}
 		err = db.DeleteUser(u.Id)

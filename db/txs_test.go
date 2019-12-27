@@ -14,7 +14,7 @@ type TxsTestSuite struct {
 	suite.Suite
 	app  *App
 	db   IDbImp
-	user *TUsers
+	user *TUser
 	acc  *TAccount
 }
 
@@ -34,7 +34,7 @@ func (st *TxsTestSuite) SetupTest() {
 	p2, err := st.user.NewPrivate(st.db)
 	st.Require().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
+	acc, err := NewAccount(st.db, st.user.Id, 2, 2, false, []string{p1.Id, p2.Id})
 	st.Require().NoError(err)
 	err = st.db.InsertAccount(acc)
 	st.Require().NoError(err)

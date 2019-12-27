@@ -15,7 +15,7 @@ type AccountTestSuite struct {
 	suite.Suite
 	app  *App
 	db   IDbImp
-	user *TUsers
+	user *TUser
 	acc  *TAccount
 }
 
@@ -29,15 +29,8 @@ func (st *AccountTestSuite) SetupSuite() {
 
 func (st *AccountTestSuite) SetupTest() {
 	st.Assert().NotNil(st.user, "default user miss")
-	p1, err := st.user.NewPrivate(st.db)
-	st.Assert().NoError(err)
-	//创建私钥2
-	p2, err := st.user.NewPrivate(st.db)
-	st.Assert().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
-	st.Assert().NoError(err)
-	err = st.db.InsertAccount(acc)
+	acc, err := st.user.GenAccount(st.db, 2, 2, false)
 	st.Assert().NoError(err)
 	st.acc = acc
 }

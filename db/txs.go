@@ -21,12 +21,12 @@ type ISaveSigs interface {
 
 //用来分析并保存签名对象
 type DbSignListener struct {
-	user *TUsers //当前用户
-	db   IDbImp  //db接口
+	user *TUser //当前用户
+	db   IDbImp //db接口
 	sigs []*TSigs
 }
 
-func NewSignListener(db IDbImp, user *TUsers) *DbSignListener {
+func NewSignListener(db IDbImp, user *TUser) *DbSignListener {
 	return &DbSignListener{
 		user: user,
 		db:   db,
@@ -136,16 +136,12 @@ type TSigs struct {
 }
 
 //签名并保存
-func (sig *TSigs) Sign(db IDbImp, pw ...string) error {
+func (sig *TSigs) Sign(db IDbImp) error {
 	pri, err := db.GetPrivate(sig.KeyId)
 	if err != nil {
 		return err
 	}
-	pkv, err := pri.ToPrivate(pw...)
-	if err != nil {
-		return err
-	}
-	sb, err := pkv.Sign(sig.Hash)
+	sb, err := pri.ToPrivate().Sign(sig.Hash)
 	if err != nil {
 		return err
 	}
@@ -269,11 +265,11 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 }
 
 //创建交易
-func (u *TUsers) NewTTx(tx *xginx.TX) *TTx {
+func (u *TUser) NewTTx(tx *xginx.TX) *TTx {
 	return NewTTx(u.Id, tx)
 }
 
-func (u *TUsers) SaveTx(db IDbImp, tx *xginx.TX, lis ISaveSigs, desc ...string) (*TTx, error) {
+func (u *TUser) SaveTx(db IDbImp, tx *xginx.TX, lis ISaveSigs, desc ...string) (*TTx, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}

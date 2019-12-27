@@ -18,13 +18,13 @@ import (
 type IDbImp interface {
 	IAppDbImp
 	//添加一个用户信息
-	InsertUser(obj *TUsers) error
+	InsertUser(obj *TUser) error
 	//获取用户信息
-	GetUserInfo(id interface{}) (*TUsers, error)
+	GetUserInfo(id interface{}) (*TUser, error)
 	//删除用户(危险)
 	DeleteUser(id interface{}) error
 	//根据手机号获取用户信息
-	GetUserInfoWithMobile(mobile string) (*TUsers, error)
+	GetUserInfoWithMobile(mobile string) (*TUser, error)
 	//添加一个私钥
 	InsertPrivate(obj *TPrivate) error
 	//删除一个私钥(危险)
@@ -57,6 +57,8 @@ type IDbImp interface {
 	GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, error)
 	//获取用户需要签名的交易
 	ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
+	//自增密钥索引
+	IncDeterIdx(name string, id interface{}) error
 }
 
 type dbimp struct {

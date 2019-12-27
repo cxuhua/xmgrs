@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/cxuhua/xginx"
@@ -13,8 +15,44 @@ const (
 	TAccountName = "accounts"
 )
 
+//自动创建账号并保存
+func GenAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAccount, error) {
+	if !db.IsTx() {
+		return nil, errors.New("use tx db")
+	}
+	pks := []xginx.PKBytes{}
+	for i := 0; i < int(num); i++ {
+		pri, err := user.NewPrivate(db)
+		if err != nil {
+			return nil, err
+		}
+		pks = append(pks, pri.Pks)
+	}
+	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
+	if err != nil {
+		return nil, err
+	}
+	id, err := acc.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+	a := &TAccount{}
+	a.Id = id
+	a.UserId = user.Id
+	a.Num = acc.Num
+	a.Less = acc.Less
+	a.Arb = acc.Arb
+	a.Pks = acc.GetPks()
+	a.Pkh = acc.GetPkhs()
+	err = db.InsertAccount(a)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 //利用多个公钥id创建账号
-func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
+func NewAccount(db IDbImp, uid primitive.ObjectID, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
@@ -36,6 +74,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAcc
 	}
 	a := &TAccount{}
 	a.Id = id
+	a.UserId = uid
 	a.Num = acc.Num
 	a.Less = acc.Less
 	a.Arb = acc.Arb
@@ -46,12 +85,13 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAcc
 
 //账户管理
 type TAccount struct {
-	Id   xginx.Address   `bson:"_id"`
-	Num  uint8           `bson:"num"`
-	Less uint8           `bson:"less"`
-	Arb  uint8           `bson:"arb"`
-	Pks  []xginx.PKBytes `bson:"pks"`
-	Pkh  []xginx.HASH160 `bson:"pkh"`
+	Id     xginx.Address      `bson:"_id"`
+	UserId primitive.ObjectID `bson:"uid"`
+	Num    uint8              `bson:"num"`
+	Less   uint8              `bson:"less"`
+	Arb    uint8              `bson:"arb"`
+	Pks    []xginx.PKBytes    `bson:"pks"`
+	Pkh    []xginx.HASH160    `bson:"pkh"`
 }
 
 //获取第几个私钥

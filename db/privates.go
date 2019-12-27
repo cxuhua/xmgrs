@@ -1,12 +1,105 @@
 package db
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha512"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"fmt"
+	"hash"
+	"math/big"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+//确定性私钥地址
+type DeterKey struct {
+	Root  []byte `bson:"root"` //私钥内容
+	Key   []byte `bson:"key"`  //私钥编码
+	Index uint32 `bson:"idx"`  //自增索引
+}
+
+//加载key
+func LoadDeterKey(s string) (*DeterKey, error) {
+	data, err := xginx.B58Decode(s, xginx.BitcoinAlphabet)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) != 68 {
+		return nil, errors.New("data length error")
+	}
+	dl := len(data)
+	hbytes := xginx.Hash256(data[:dl-4])
+	if !bytes.Equal(hbytes[:4], data[dl-4:]) {
+		return nil, errors.New("checksum error")
+	}
+	dk := &DeterKey{
+		Root: data[:32],
+		Key:  data[32 : dl-4],
+	}
+	return dk, nil
+}
+
+func (k DeterKey) GetPrivateKey() *xginx.PrivateKey {
+	pri := &xginx.PrivateKey{}
+	pri.D = new(big.Int).SetBytes(k.Root)
+	return pri
+}
+
+func (k DeterKey) Dump() string {
+	data := append([]byte{}, k.Root...)
+	data = append(data, k.Key...)
+	hbytes := xginx.Hash256(data)
+	data = append(data, hbytes[:4]...)
+	return xginx.B58Encode(data, xginx.BitcoinAlphabet)
+}
+
+func (k DeterKey) String() string {
+	return fmt.Sprintf("%s %s", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key))
+}
+
+//派生一个密钥
+func (k DeterKey) New(idx uint32) *DeterKey {
+	h := hmac.New(func() hash.Hash {
+		return sha512.New()
+	}, k.Key)
+	_, err := h.Write(k.Root)
+	if err != nil {
+		panic(err)
+	}
+	err = binary.Write(h, binary.BigEndian, idx)
+	if err != nil {
+		panic(err)
+	}
+	b := h.Sum(nil)
+	if len(b) != 64 {
+		panic(errors.New("hmac sha512 sum error"))
+	}
+	return &DeterKey{
+		Root: b[:32],
+		Key:  b[32:],
+	}
+}
+
+func NewDeterKey() *DeterKey {
+	pri, err := xginx.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	k := &DeterKey{}
+	k.Root = pri.Bytes()
+	k.Key = make([]byte, 32)
+	_, err = rand.Read(k.Key)
+	if err != nil {
+		panic(err)
+	}
+	return k
+}
 
 const (
 	TPrivatesName = "privates"
@@ -28,40 +121,37 @@ func GetPrivateId(pkh xginx.HASH160) string {
 	return id
 }
 
-func NewPrivate(uid primitive.ObjectID, pri *xginx.PrivateKey) *TPrivate {
+func NewPrivate(uid primitive.ObjectID, parent *DeterKey) *TPrivate {
 	dp := &TPrivate{}
-	dp.Pks = pri.PublicKey().GetPks()
+	dp.Deter = parent.New(parent.Index)
+	dp.Pks = dp.Deter.GetPrivateKey().PublicKey().GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.Id = GetPrivateId(dp.Pkh)
 	dp.UserId = uid
 	dp.Cipher = CipherTypeNone
-	dp.Pri = pri.Encode()
 	return dp
 }
 
+//创建账号并保存
+func (user *TUser) GenAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAccount, error) {
+	return GenAccount(db, user, num, less, arb)
+}
+
 //新建并写入私钥
-func (user *TUsers) NewPrivate(db IDbImp) (*TPrivate, error) {
+func (user *TUser) NewPrivate(db IDbImp) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
-	var pri *xginx.PrivateKey
-	last, err := db.GetPrivate(user.Last)
-	if err != nil {
-		pri, err = user.SeedKey()
-	} else {
-		pri, err = last.ToPrivate()
-	}
+	ptr := NewPrivate(user.Id, user.Deter)
+	err := db.InsertPrivate(ptr)
 	if err != nil {
 		return nil, err
 	}
-	pri = pri.New(user.Prefix)
-	ptr := NewPrivate(user.Id, pri)
-	err = db.InsertPrivate(ptr)
+	err = db.IncDeterIdx(TUsersName, user.Id)
 	if err != nil {
 		return nil, err
 	}
-	user.Last = ptr.Id
-	user.Count++
+	user.Deter.Index++
 	return ptr, nil
 }
 
@@ -72,7 +162,7 @@ type TPrivate struct {
 	Cipher CipherType         `bson:"cipher"` //加密方式
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
-	Pri    []byte             `bson:"pri"`    //私钥数据
+	Deter  *DeterKey          `bson:"deter"`  //私钥内容
 }
 
 func (p *TPrivate) GetPkh() xginx.HASH160 {
@@ -81,14 +171,23 @@ func (p *TPrivate) GetPkh() xginx.HASH160 {
 	return id
 }
 
-//pw 根据加密方式暂时解密生成私钥对象
-func (p *TPrivate) ToPrivate(pw ...string) (*xginx.PrivateKey, error) {
-	pri := &xginx.PrivateKey{}
-	err := pri.Decode(p.Pri)
+func (p *TPrivate) New(db IDbImp) (*TPrivate, error) {
+	pri := NewPrivate(p.UserId, p.Deter)
+	err := db.InsertPrivate(pri)
 	if err != nil {
 		return nil, err
 	}
+	err = db.IncDeterIdx(TUsersName, p.Id)
+	if err != nil {
+		return nil, err
+	}
+	p.Deter.Index++
 	return pri, nil
+}
+
+//pw 根据加密方式暂时解密生成私钥对象
+func (p *TPrivate) ToPrivate() *xginx.PrivateKey {
+	return p.Deter.GetPrivateKey()
 }
 
 //获取用户的私钥
@@ -128,6 +227,13 @@ func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
 	return v, nil
 }
 
+func (ctx *dbimp) IncDeterIdx(name string, id interface{}) error {
+	col := ctx.table(name)
+	doc := bson.M{"$inc": bson.M{"deter.idx": 1}}
+	_, err := col.UpdateOne(ctx, bson.M{"_id": id}, doc)
+	return err
+}
+
 //添加一个私钥
 func (ctx *dbimp) InsertPrivate(obj *TPrivate) error {
 	if !ctx.IsTx() {
@@ -137,13 +243,7 @@ func (ctx *dbimp) InsertPrivate(obj *TPrivate) error {
 	if err == nil {
 		return errors.New("private exists")
 	}
-	col := ctx.table(TUsersName)
-	doc := bson.M{"$set": bson.M{"last": obj.Id}, "$inc": bson.M{"count": 1}}
-	_, err = col.UpdateOne(ctx, bson.M{"_id": obj.UserId}, doc)
-	if err != nil {
-		return err
-	}
-	col = ctx.table(TPrivatesName)
+	col := ctx.table(TPrivatesName)
 	_, err = col.InsertOne(ctx, obj)
 	return err
 }

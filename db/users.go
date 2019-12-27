@@ -1,7 +1,6 @@
 package db
 
 import (
-	"crypto/rand"
 	"errors"
 
 	"github.com/cxuhua/xginx"
@@ -14,55 +13,38 @@ const (
 )
 
 //用户管理
-type TUsers struct {
+type TUser struct {
 	Id     primitive.ObjectID `bson:"_id"`
 	Mobile string             `bson:"mobile"`
-	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
-	Seed   []byte             `bson:"seed"`   //种子私钥
-	Prefix []byte             `bson:"prefix"` //私钥前缀，备份私钥需要 seed和这个前缀
-	Last   string             `bson:"last"`   //创建的最后一个私钥id,保存私钥的时候一起保存
-	Count  int                `bson:"count"`  //创建的数量
-	Token  string             `bson:"token"`
+	Pass   xginx.HASH256      `bson:"pass"`  //hash256密钥
+	Deter  *DeterKey          `bson:"deter"` //确定性key
 }
 
-func NewUser(mobile string, pass []byte) *TUsers {
-	pri, err := xginx.NewPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-	u := &TUsers{}
+func NewUser(mobile string, pass []byte) *TUser {
+	u := &TUser{}
 	u.Id = primitive.NewObjectID()
 	u.Mobile = mobile
-	u.Seed = pri.Encode()
-	u.Prefix = make([]byte, 64)
-	_, err = rand.Read(u.Prefix)
-	if err != nil {
-		panic(err)
-	}
+	u.Deter = NewDeterKey()
 	u.Pass = xginx.Hash256From(pass)
 	return u
 }
 
-func (u TUsers) SeedKey() (*xginx.PrivateKey, error) {
-	pri := &xginx.PrivateKey{}
-	err := pri.Decode(u.Seed)
-	if err != nil {
-		return nil, err
-	}
-	return pri, nil
+func (u *TUser) CheckPass(pass string) bool {
+	hv := xginx.Hash256From([]byte(pass))
+	return hv.Equal(u.Pass)
 }
 
-func (u *TUsers) ListTxs(db IDbImp, sign bool) ([]*TTx, error) {
+func (u *TUser) ListTxs(db IDbImp, sign bool) ([]*TTx, error) {
 	return db.ListUserTxs(u.Id, sign)
 }
 
 //获取用户相关的账号
-func (u *TUsers) ListAccounts(db IDbImp) ([]*TAccount, error) {
+func (u *TUser) ListAccounts(db IDbImp) ([]*TAccount, error) {
 	return db.ListAccounts(u.Id)
 }
 
 //获取用户余额
-func (u *TUsers) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
+func (u *TUser) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
 	accs, err := db.ListAccounts(u.Id)
 	if err != nil {
 		return nil, err
@@ -112,10 +94,10 @@ func (ctx *dbimp) ListAccounts(uid primitive.ObjectID) ([]*TAccount, error) {
 }
 
 //获取一个用户信息
-func (ctx *dbimp) GetUserInfoWithMobile(mobile string) (*TUsers, error) {
+func (ctx *dbimp) GetUserInfoWithMobile(mobile string) (*TUser, error) {
 	col := ctx.table(TUsersName)
 	res := col.FindOne(ctx, bson.M{"mobile": mobile})
-	v := &TUsers{}
+	v := &TUser{}
 	err := res.Decode(v)
 	if err != nil {
 		return nil, err
@@ -124,10 +106,10 @@ func (ctx *dbimp) GetUserInfoWithMobile(mobile string) (*TUsers, error) {
 }
 
 //获取一个用户信息
-func (ctx *dbimp) GetUserInfo(id interface{}) (*TUsers, error) {
+func (ctx *dbimp) GetUserInfo(id interface{}) (*TUser, error) {
 	col := ctx.table(TUsersName)
 	objID := ToObjectID(id)
-	v := &TUsers{}
+	v := &TUser{}
 	err := col.FindOne(ctx, bson.M{"_id": objID}).Decode(v)
 	if err != nil {
 		return nil, err
@@ -135,20 +117,32 @@ func (ctx *dbimp) GetUserInfo(id interface{}) (*TUsers, error) {
 	return v, nil
 }
 
+//删除用户
 func (ctx *dbimp) DeleteUser(id interface{}) error {
+	if !ctx.IsTx() {
+		return errors.New("use tx")
+	}
 	uid := ToObjectID(id)
+	//删除用户的私钥
 	col := ctx.table(TPrivatesName)
 	_, err := col.DeleteMany(ctx, bson.M{"uid": uid})
 	if err != nil {
 		return err
 	}
+	//删除用户创建的账号
+	col = ctx.table(TAccountName)
+	_, err = col.DeleteMany(ctx, bson.M{"uid": uid})
+	if err != nil {
+		return err
+	}
+	//删除用户信息
 	col = ctx.table(TUsersName)
 	_, err = col.DeleteOne(ctx, bson.M{"_id": uid})
 	return err
 }
 
 //添加一个用户
-func (ctx *dbimp) InsertUser(obj *TUsers) error {
+func (ctx *dbimp) InsertUser(obj *TUser) error {
 	_, err := ctx.GetUserInfoWithMobile(obj.Mobile)
 	if err == nil {
 		return errors.New("user exists")

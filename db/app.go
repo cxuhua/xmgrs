@@ -3,9 +3,13 @@ package db
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/cxuhua/xmgrs/util"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -14,6 +18,11 @@ import (
 	"github.com/go-redis/redis/v7"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const (
+	TokenFormat = "[(%s)]"
+	TokenName   = "X-Access-Token"
 )
 
 /*
@@ -43,6 +52,7 @@ var (
 	dbonce   = sync.Once{}
 	rediscli *redis.Client
 	mongocli *mongo.Client
+	cipher   = util.NewAESCipher([]byte("_Ufdf&^23232(j3434_"))
 )
 
 //两个id是否相等
@@ -82,6 +92,54 @@ type App struct {
 	context.Context
 	redis *redis.Client
 	mongo *mongo.Client
+}
+
+//生成一个加密的token
+func (app *App) GenToken() string {
+	id := primitive.NewObjectID()
+	return id.Hex()
+}
+
+//time=0不过期
+func (app *App) SetUserId(k string, id string, time time.Duration) error {
+	s := app.redis.Set(k, id, time)
+	return s.Err()
+}
+
+//获取token
+func (app *App) GetUserId(k string) (string, error) {
+	s := app.redis.Get(k)
+	return s.Result()
+}
+
+//加密token
+func (app *App) EncryptToken(token string) string {
+	tk := fmt.Sprintf(TokenFormat, token)
+	ck, err := util.AesEncrypt(cipher, []byte(tk))
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(ck)
+}
+
+//解密token
+func (app *App) DecryptToken(cks string) (string, error) {
+	ck, err := base64.URLEncoding.DecodeString(cks)
+	if err != nil {
+		return "", err
+	}
+	tk, err := util.AesDecrypt(cipher, ck)
+	if err != nil {
+		return "", err
+	}
+	if len(tk) != 28 {
+		return "", errors.New("token length error")
+	}
+	mk := tk[2 : len(tk)-2]
+	if string(tk) != fmt.Sprintf(TokenFormat, string(mk)) {
+		return "", errors.New("token error")
+	}
+	return string(mk), nil
 }
 
 func (app *App) Close() {
