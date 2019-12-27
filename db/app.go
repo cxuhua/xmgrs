@@ -192,8 +192,7 @@ func InitApp(ctx context.Context) *App {
 		ropts.MinIdleConns = int(MinPoolSize)
 		rediscli = redis.NewClient(ropts).WithContext(ctx)
 		//mongodb init
-		mopts := options.
-			Client().
+		mopts := options.Client().
 			ApplyURI(MongoURI).
 			SetMaxPoolSize(MaxPoolSize).
 			SetMinPoolSize(MinPoolSize)

@@ -22,7 +22,7 @@ func GenAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAcco
 	}
 	pks := []xginx.PKBytes{}
 	for i := 0; i < int(num); i++ {
-		pri, err := user.NewPrivate(db)
+		pri, err := user.NewPrivate(db, "自动创建")
 		if err != nil {
 			return nil, err
 		}
@@ -86,12 +86,12 @@ func NewAccount(db IDbImp, uid primitive.ObjectID, num uint8, less uint8, arb bo
 //账户管理
 type TAccount struct {
 	Id     xginx.Address      `bson:"_id"`
-	UserId primitive.ObjectID `bson:"uid"`
+	UserId primitive.ObjectID `bson:"uid"` //谁创建的
 	Num    uint8              `bson:"num"`
 	Less   uint8              `bson:"less"`
 	Arb    uint8              `bson:"arb"`
 	Pks    []xginx.PKBytes    `bson:"pks"`
-	Pkh    []xginx.HASH160    `bson:"pkh"`
+	Pkh    []xginx.HASH160    `bson:"pkh"` //相关的私钥
 }
 
 //获取第几个私钥

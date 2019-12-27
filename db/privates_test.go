@@ -15,7 +15,7 @@ func TestNewPrivate(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		dp, err := user.NewPrivate(db)
+		dp, err := user.NewPrivate(db, "测试私钥1")
 		if err != nil {
 			return err
 		}

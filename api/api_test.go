@@ -27,6 +27,7 @@ type ApiTestSuite struct {
 	m      *gin.Engine
 	mobile string
 	token  string
+	bi     *xginx.BlockIndex
 }
 
 func (st *ApiTestSuite) SetupSuite() {
@@ -46,10 +47,12 @@ func (st *ApiTestSuite) SetupSuite() {
 			return err
 		}
 		//创建测试账号
-		_, err = user.GenAccount(sdb, 1, 1, false)
+		acc, err := user.GenAccount(sdb, 1, 1, false)
 		if err != nil {
 			return err
 		}
+		//生成101个区块
+		st.bi = xginx.NewTestBlockIndex(101, acc.GetAddress())
 		return err
 	})
 	st.Require().NoError(err)
@@ -135,6 +138,7 @@ func (st *ApiTestSuite) TearDownTest() {
 }
 
 func (st *ApiTestSuite) TearDownSuite() {
+	xginx.CloseTestBlock(st.bi)
 	app := db.InitApp(st.ctx)
 	err := app.UseTx(func(sdb db.IDbImp) error {
 		user, err := sdb.GetUserInfoWithMobile(st.mobile)

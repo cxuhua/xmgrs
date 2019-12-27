@@ -71,7 +71,7 @@ func (st *DbSignListener) GetCoins() xginx.Coins {
 	if err != nil {
 		return nil
 	}
-	return ds.Coins
+	return ds.Coins.Sort()
 }
 
 //获取找零地址

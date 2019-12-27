@@ -42,7 +42,7 @@ func (lis *mylis) runHttp() {
 	//创建一个全局连接
 	lis.app = db.InitApp(lis.ctx)
 	//
-	handler := api.InitHandler(lis.ctx, api.IsLogin)
+	handler := api.InitHandler(lis.ctx)
 	lis.xhttp = &http.Server{
 		Addr:    config.HttpAddr,
 		Handler: handler,

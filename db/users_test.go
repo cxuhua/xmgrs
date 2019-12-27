@@ -25,11 +25,11 @@ func TestAddUsers(t *testing.T) {
 		if !ObjectIDEqual(u.Id, u1.Id) {
 			return errors.New("find user error")
 		}
-		_, err = u.NewPrivate(db)
+		_, err = u.NewPrivate(db, "第一个私钥")
 		if err != nil {
 			return err
 		}
-		_, err = u.NewPrivate(db)
+		_, err = u.NewPrivate(db, "第二个私钥")
 		if err != nil {
 			return err
 		}

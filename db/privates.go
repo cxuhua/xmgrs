@@ -121,7 +121,7 @@ func GetPrivateId(pkh xginx.HASH160) string {
 	return id
 }
 
-func NewPrivate(uid primitive.ObjectID, parent *DeterKey) *TPrivate {
+func NewPrivate(uid primitive.ObjectID, parent *DeterKey, desc string) *TPrivate {
 	dp := &TPrivate{}
 	dp.Deter = parent.New(parent.Index)
 	dp.Pks = dp.Deter.GetPrivateKey().PublicKey().GetPks()
@@ -129,6 +129,7 @@ func NewPrivate(uid primitive.ObjectID, parent *DeterKey) *TPrivate {
 	dp.Id = GetPrivateId(dp.Pkh)
 	dp.UserId = uid
 	dp.Cipher = CipherTypeNone
+	dp.Desc = desc
 	return dp
 }
 
@@ -138,11 +139,11 @@ func (user *TUser) GenAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAcc
 }
 
 //新建并写入私钥
-func (user *TUser) NewPrivate(db IDbImp) (*TPrivate, error) {
+func (user *TUser) NewPrivate(db IDbImp, desc string) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
-	ptr := NewPrivate(user.Id, user.Deter)
+	ptr := NewPrivate(user.Id, user.Deter, desc)
 	err := db.InsertPrivate(ptr)
 	if err != nil {
 		return nil, err
@@ -163,6 +164,7 @@ type TPrivate struct {
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
 	Deter  *DeterKey          `bson:"deter"`  //私钥内容
+	Desc   string             `bson:"desc"`
 }
 
 func (p *TPrivate) GetPkh() xginx.HASH160 {
@@ -171,8 +173,8 @@ func (p *TPrivate) GetPkh() xginx.HASH160 {
 	return id
 }
 
-func (p *TPrivate) New(db IDbImp) (*TPrivate, error) {
-	pri := NewPrivate(p.UserId, p.Deter)
+func (p *TPrivate) New(db IDbImp, desc string) (*TPrivate, error) {
+	pri := NewPrivate(p.UserId, p.Deter, desc)
 	err := db.InsertPrivate(pri)
 	if err != nil {
 		return nil, err

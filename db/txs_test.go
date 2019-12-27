@@ -28,10 +28,10 @@ func (st *TxsTestSuite) SetupSuite() {
 
 func (st *TxsTestSuite) SetupTest() {
 	st.Require().NotNil(st.user, "default user miss")
-	p1, err := st.user.NewPrivate(st.db)
+	p1, err := st.user.NewPrivate(st.db, "第一个私钥")
 	st.Require().NoError(err)
 	//创建私钥2
-	p2, err := st.user.NewPrivate(st.db)
+	p2, err := st.user.NewPrivate(st.db, "第二个私钥")
 	st.Require().NoError(err)
 	//创建 2-2证书
 	acc, err := NewAccount(st.db, st.user.Id, 2, 2, false, []string{p1.Id, p2.Id})
