@@ -41,6 +41,10 @@ func loginApi(c *gin.Context) {
 			return errors.New("password error")
 		}
 		tk := app.GenToken()
+		err = db.SetUserToken(user.Id, tk)
+		if err != nil {
+			return err
+		}
 		err = app.SetUserId(tk, user.Id.Hex(), time.Hour*24*7)
 		if err != nil {
 			return err

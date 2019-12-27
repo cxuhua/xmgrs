@@ -17,6 +17,8 @@ import (
 
 type IDbImp interface {
 	IAppDbImp
+	//设置用户token
+	SetUserToken(uid primitive.ObjectID, tk string) error
 	//添加一个用户信息
 	InsertUser(obj *TUser) error
 	//获取用户信息

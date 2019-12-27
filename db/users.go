@@ -18,6 +18,7 @@ type TUser struct {
 	Mobile string             `bson:"mobile"`
 	Pass   xginx.HASH256      `bson:"pass"`  //hash256密钥
 	Deter  *DeterKey          `bson:"deter"` //确定性key
+	Token  string             `bson:"token"`
 }
 
 func NewUser(mobile string, pass []byte) *TUser {
@@ -58,6 +59,12 @@ func (u *TUser) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, e
 		s.Merge(cs)
 	}
 	return s, nil
+}
+
+func (ctx *dbimp) SetUserToken(uid primitive.ObjectID, tk string) error {
+	col := ctx.table(TUsersName)
+	_, err := col.UpdateOne(ctx, bson.M{"_id": uid}, bson.M{"$set": bson.M{"token": tk}})
+	return err
 }
 
 //获取用户相关的账户

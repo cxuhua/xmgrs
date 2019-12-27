@@ -18,51 +18,8 @@ import (
 	"github.com/cxuhua/xginx"
 	"github.com/stretchr/testify/suite"
 
-	"gopkg.in/go-playground/validator.v9"
-
 	"github.com/gin-gonic/gin"
 )
-
-func TestValid(t *testing.T) {
-	fn := func(ctx context.Context, fl validator.FieldLevel) bool {
-		log.Println(ctx.Value("aaa"))
-		fl.Field().SetInt(100)
-		return true
-	}
-	validate := validator.New()
-	err := validate.RegisterValidationCtx("new", fn)
-	if err != nil {
-		panic(err)
-	}
-	type x struct {
-		A int `validate:"new"`
-	}
-	ctx := context.WithValue(context.Background(), "aaa", 1000)
-	a := &x{}
-	err = validate.StructCtx(ctx, a)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func RequestJson(req *http.Request) ([]byte, error) {
-	gin.SetMode(gin.TestMode)
-	if req.Method != http.MethodGet {
-		req.Header.Set("content-type", "application/x-www-form-urlencoded")
-	}
-	m := InitHandler(context.Background())
-	w := httptest.NewRecorder()
-	m.ServeHTTP(w, req)
-	resp := w.Result()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("http status code = %d", resp.StatusCode)
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
-}
 
 type ApiTestSuite struct {
 	suite.Suite
@@ -171,16 +128,6 @@ func (st *ApiTestSuite) Do(w http.ResponseWriter, req *http.Request) {
 func (st *ApiTestSuite) SetupTest() {
 	err := st.Login()
 	st.Require().NoError(err)
-}
-
-func (st *ApiTestSuite) TestGetUserInfo() {
-	type result struct {
-		Mobile string `json:"mobile"`
-	}
-	res := &result{}
-	err := st.Get("/v1/user/info", res)
-	st.Require().NoError(err)
-	st.Require().Equal(res.Mobile, st.mobile, "mobile error")
 }
 
 func (st *ApiTestSuite) TearDownTest() {
