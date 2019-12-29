@@ -134,8 +134,8 @@ func NewPrivate(uid primitive.ObjectID, parent *DeterKey, desc string) *TPrivate
 }
 
 //创建账号并保存
-func (user *TUser) GenAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAccount, error) {
-	return GenAccount(db, user, num, less, arb)
+func (user *TUser) SaveAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAccount, error) {
+	return SaveAccount(db, user, num, less, arb)
 }
 
 //新建并写入私钥

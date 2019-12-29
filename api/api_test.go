@@ -47,7 +47,7 @@ func (st *ApiTestSuite) SetupSuite() {
 			return err
 		}
 		//创建测试账号
-		acc, err := user.GenAccount(sdb, 1, 1, false)
+		acc, err := user.SaveAccount(sdb, 1, 1, false)
 		if err != nil {
 			return err
 		}

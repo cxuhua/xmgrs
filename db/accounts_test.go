@@ -30,7 +30,7 @@ func (st *AccountTestSuite) SetupSuite() {
 func (st *AccountTestSuite) SetupTest() {
 	st.Assert().NotNil(st.user, "default user miss")
 	//创建 2-2证书
-	acc, err := st.user.GenAccount(st.db, 2, 2, false)
+	acc, err := st.user.SaveAccount(st.db, 2, 2, false)
 	st.Assert().NoError(err)
 	st.acc = acc
 }
