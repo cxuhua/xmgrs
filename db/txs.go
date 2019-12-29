@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -255,6 +256,13 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 	err := tx.Sign(bi, &setsigner{db: db})
 	if err != nil {
 		return nil, err
+	}
+	tid, err := tx.ID()
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(tid[:], stx.Id) {
+		return nil, errors.New("tx ttx id error")
 	}
 	//校验交易
 	err = tx.Check(bi, true)
