@@ -222,6 +222,11 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 		}
 		wits.Sig = append(wits.Sig, sigs.Sigs)
 	}
+	//检测脚本
+	err = wits.Check()
+	if err != nil {
+		return err
+	}
 	//检测签名脚本并返回脚本
 	script, err := wits.ToScript()
 	if err != nil {
