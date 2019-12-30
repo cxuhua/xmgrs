@@ -64,7 +64,7 @@ func (k DeterKey) String() string {
 }
 
 //派生一个密钥
-func (k DeterKey) New(idx uint32) *DeterKey {
+func (k *DeterKey) New(idx uint32) *DeterKey {
 	h := hmac.New(func() hash.Hash {
 		return sha512.New()
 	}, k.Key)
@@ -121,9 +121,9 @@ func GetPrivateId(pkh xginx.HASH160) string {
 	return id
 }
 
-func NewPrivate(uid primitive.ObjectID, parent *DeterKey, desc string) *TPrivate {
+func NewPrivate(uid primitive.ObjectID, dk *DeterKey, desc string) *TPrivate {
 	dp := &TPrivate{}
-	dp.Deter = parent.New(parent.Index)
+	dp.Deter = dk.New(dk.Index)
 	dp.Pks = dp.Deter.GetPrivateKey().PublicKey().GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.Id = GetPrivateId(dp.Pkh)
@@ -179,7 +179,7 @@ func (p *TPrivate) New(db IDbImp, desc string) (*TPrivate, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = db.IncDeterIdx(TUsersName, p.Id)
+	err = db.IncDeterIdx(TPrivatesName, p.Id)
 	if err != nil {
 		return nil, err
 	}
