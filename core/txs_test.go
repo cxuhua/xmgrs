@@ -41,6 +41,7 @@ func (st *TxsTestSuite) SetupTest() {
 	st.acc = acc
 }
 
+//创建新交易测试
 func (st *TxsTestSuite) TestNewTx() {
 	st.Require().NotNil(st.acc, "default account miss")
 	bi := xginx.NewTestBlockIndex(100, st.acc.GetAddress())
