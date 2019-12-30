@@ -1,4 +1,4 @@
-package db
+package core
 
 import (
 	"errors"
@@ -75,7 +75,7 @@ func (db *dbimp) table(name string, opts ...*options.CollectionOptions) *mongo.C
 
 func (db *dbimp) UseTx(fn func(db IDbImp) error) error {
 	if db.IsTx() {
-		return errors.New("tx db can't invoke Transaction")
+		return errors.New("tx core can't invoke Transaction")
 	}
 	_, err := db.WithTransaction(db, func(sdb mongo.SessionContext) (i interface{}, err error) {
 		imp := NewDbImp(sdb, db.redv, true)

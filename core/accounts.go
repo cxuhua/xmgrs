@@ -1,4 +1,4 @@
-package db
+package core
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ const (
 //自动创建账号并保存
 func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAccount, error) {
 	if !db.IsTx() {
-		return nil, errors.New("use tx db")
+		return nil, errors.New("use tx core")
 	}
 	ids := []string{}
 	for i := 0; i < int(num); i++ {

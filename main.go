@@ -11,7 +11,7 @@ import (
 
 	"github.com/cxuhua/xmgrs/api"
 
-	"github.com/cxuhua/xmgrs/db"
+	"github.com/cxuhua/xmgrs/core"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,7 +24,7 @@ type mylis struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	xhttp  *http.Server
-	app    *db.App
+	app    *core.App
 }
 
 func (lis *mylis) OnLinkBlock(blk *xginx.BlockInfo) {
@@ -37,10 +37,10 @@ func (lis *mylis) OnUnlinkBlock(blk *xginx.BlockInfo) {
 
 func (lis *mylis) runHttp() {
 	lis.ctx, lis.cancel = xginx.GetContext()
-	db.RedisURI = config.Redis
-	db.MongoURI = config.Mongo
+	core.RedisURI = config.Redis
+	core.MongoURI = config.Mongo
 	//创建一个全局连接
-	lis.app = db.InitApp(lis.ctx)
+	lis.app = core.InitApp(lis.ctx)
 	//
 	handler := api.InitHandler(lis.ctx)
 	lis.xhttp = &http.Server{

@@ -13,29 +13,30 @@ func AesEncrypt(block cipher.Block, data []byte) ([]byte, error) {
 	if block == nil {
 		return nil, errors.New("block nil")
 	}
+	bsiz := block.BlockSize()
 	//随机生成iv
-	iv := make([]byte, aes.BlockSize)
+	iv := make([]byte, bsiz)
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
 	}
 	dl := len(data)
-	l := (dl/aes.BlockSize)*aes.BlockSize + aes.BlockSize
-	if dl%aes.BlockSize == 0 {
+	l := (dl/bsiz)*bsiz + bsiz
+	if dl%bsiz == 0 {
 		l = dl
 	}
 	//add iv length
-	dd := make([]byte, l+aes.BlockSize)
+	dd := make([]byte, l+bsiz)
 	n := l - dl
 	//copy iv to dd
 	copy(dd[0:], iv)
 	//copy data to dd
-	copy(dd[aes.BlockSize:], data)
+	copy(dd[bsiz:], data)
 	//fill end bytes
 	for i := 0; i < n; i++ {
-		dd[dl+i+aes.BlockSize] = byte(n)
+		dd[dl+i+bsiz] = byte(n)
 	}
 	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(dd[aes.BlockSize:], dd[aes.BlockSize:])
+	mode.CryptBlocks(dd[bsiz:], dd[bsiz:])
 	return dd, nil
 }
 
@@ -58,19 +59,20 @@ func AesDecrypt(block cipher.Block, data []byte) ([]byte, error) {
 	if block == nil {
 		return nil, errors.New("block nil")
 	}
+	bsiz := block.BlockSize()
 	bys := len(data)
-	if bys < 32 || bys%aes.BlockSize != 0 {
+	if bys%bsiz != 0 {
 		return nil, errors.New("decrypt data length error")
 	}
 	//16 bytes iv
-	iv := data[:aes.BlockSize]
-	dd := data[aes.BlockSize:]
+	iv := data[:bsiz]
+	dd := data[bsiz:]
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(dd, dd)
 	l := len(dd)
-	if n := dd[l-1]; n <= aes.BlockSize {
+	if n := int(dd[l-1]); n <= bsiz {
 		x := l - int(n)
-		if bytesEquInt(dd[x:], n) {
+		if bytesEquInt(dd[x:], byte(n)) {
 			dd = dd[:x]
 		}
 	}
@@ -89,9 +91,9 @@ func TrimAESKey(key []byte) ([]byte, error) {
 	iLen := size * 8
 	ikey := make([]byte, iLen)
 	if len(key) > iLen {
-		copy(ikey[0:], key[:iLen])
+		copy(ikey, key[:iLen])
 	} else {
-		copy(ikey[0:], key)
+		copy(ikey, key)
 	}
 	return ikey, nil
 }
@@ -102,9 +104,9 @@ func NewAESCipher(key []byte) cipher.Block {
 	if err != nil {
 		panic(err)
 	}
-	c, err := aes.NewCipher(ikey)
+	block, err := aes.NewCipher(ikey)
 	if err != nil {
 		panic(err)
 	}
-	return c
+	return block
 }

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cxuhua/xmgrs/db"
+	"github.com/cxuhua/xmgrs/core"
 
 	"github.com/cxuhua/xginx"
 	"github.com/stretchr/testify/suite"
@@ -36,12 +36,13 @@ func (st *ApiTestSuite) SetupSuite() {
 
 	xginx.NewTestConfig()
 
+	gin.SetMode(gin.TestMode)
 	st.m = InitHandler(st.ctx)
 
-	app := db.InitApp(st.ctx)
-	err := app.UseTx(func(sdb db.IDbImp) error {
+	app := core.InitApp(st.ctx)
+	err := app.UseTx(func(sdb core.IDbImp) error {
 		//创建测试用户
-		user := db.NewUser(st.mobile, []byte("xh0714"))
+		user := core.NewUser(st.mobile, []byte("xh0714"))
 		err := sdb.InsertUser(user)
 		if err != nil {
 			return err
@@ -85,7 +86,7 @@ func (st *ApiTestSuite) Post(uri string, v url.Values, jv interface{}) error {
 func (st *ApiTestSuite) Get(uri string, jv interface{}) error {
 	req := httptest.NewRequest(http.MethodGet, uri, nil)
 	if st.token != "" {
-		req.Header.Set("X-Access-Token", st.token)
+		req.Header.Set(core.TokenHeader, st.token)
 	}
 	wr := httptest.NewRecorder()
 	st.Do(wr, req)
@@ -139,8 +140,8 @@ func (st *ApiTestSuite) TearDownTest() {
 
 func (st *ApiTestSuite) TearDownSuite() {
 	xginx.CloseTestBlock(st.bi)
-	app := db.InitApp(st.ctx)
-	err := app.UseTx(func(sdb db.IDbImp) error {
+	app := core.InitApp(st.ctx)
+	err := app.UseTx(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfoWithMobile(st.mobile)
 		if err != nil {
 			return err

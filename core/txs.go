@@ -1,4 +1,4 @@
-package db
+package core
 
 import (
 	"bytes"
@@ -88,7 +88,7 @@ func (st *DbSignListener) GetKeep() xginx.Address {
 	return accs[0].GetAddress()
 }
 
-//签名交易
+//获取签名信息
 func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
 	addr := singer.GetAddress()
 	//获取对应的账号

@@ -1,4 +1,4 @@
-package db
+package core
 
 import (
 	"bytes"
@@ -21,19 +21,20 @@ import (
 )
 
 const (
-	TokenFormat = "[(%s)]"
-	TokenName   = "X-Access-Token"
+	TokenFormat   = "[(%s)]"
+	TokenPassword = "_Ufdf&^23232(j3434_"
+	TokenHeader   = "X-Access-Token"
 )
 
 /*
 //数据库索引
-db.accounts.ensureIndex({uid:1})
-db.accounts.ensureIndex({pkh:1})
-db.privates.ensureIndex({uid:1})
-db.txs.ensureIndex({uid:1})
-db.users.ensureIndex({mobile:1})
-db.sigs.ensureIndex({tid:1})
-db.sigs.ensureIndex({uid:1})
+core.accounts.ensureIndex({uid:1})
+core.accounts.ensureIndex({pkh:1})
+core.privates.ensureIndex({uid:1})
+core.txs.ensureIndex({uid:1})
+core.users.ensureIndex({mobile:1})
+core.sigs.ensureIndex({tid:1})
+core.sigs.ensureIndex({uid:1})
 */
 
 var (
@@ -52,7 +53,7 @@ var (
 	dbonce   = sync.Once{}
 	rediscli *redis.Client
 	mongocli *mongo.Client
-	cipher   = util.NewAESCipher([]byte("_Ufdf&^23232(j3434_"))
+	cipher   = util.NewAESCipher([]byte(TokenPassword))
 )
 
 //两个id是否相等
@@ -138,6 +139,9 @@ func (app *App) DecryptToken(cks string) (string, error) {
 	mk := tk[2 : len(tk)-2]
 	if string(tk) != fmt.Sprintf(TokenFormat, string(mk)) {
 		return "", errors.New("token error")
+	}
+	if _, err := primitive.ObjectIDFromHex(string(mk)); err != nil {
+		return "", err
 	}
 	return string(mk), nil
 }

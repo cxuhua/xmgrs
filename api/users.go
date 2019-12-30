@@ -8,10 +8,53 @@ import (
 
 	"github.com/cxuhua/xginx"
 
-	"github.com/cxuhua/xmgrs/db"
+	"github.com/cxuhua/xmgrs/core"
 
 	"github.com/gin-gonic/gin"
 )
+
+//注册
+func registerApi(c *gin.Context) {
+	args := struct {
+		Mobile string `form:"mobile"`
+		Pass   string `form:"pass"`
+		Code   string `form:"code"` //手机验证码
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.Error(NewError(100, err))
+		return
+	}
+	if args.Mobile == "" || args.Pass == "" {
+		c.Error(NewError(101, "mobile or pass args error"))
+		return
+	}
+	if args.Code != "9527" {
+		c.Error(NewError(102, "code error"))
+		return
+	}
+	type result struct {
+		Meta int `json:"meta"`
+	}
+	rv := result{
+		Meta: 0,
+	}
+	app := core.GetApp(c)
+	err := app.UseDb(func(sdb core.IDbImp) error {
+		user, err := sdb.GetUserInfoWithMobile(args.Mobile)
+		if err == nil {
+			rv.Meta = 103
+			return errors.New("mobile exists")
+		}
+		user = core.NewUser(args.Mobile, []byte(args.Pass))
+		rv.Meta = 104
+		return sdb.InsertUser(user)
+	})
+	if err != nil {
+		c.Error(NewError(rv.Meta, err))
+		return
+	}
+	c.JSON(http.StatusOK, rv)
+}
 
 func loginApi(c *gin.Context) {
 	args := struct {
@@ -33,8 +76,8 @@ func loginApi(c *gin.Context) {
 	rv := result{
 		Meta: 0,
 	}
-	app := db.GetApp(c)
-	err := app.UseDb(func(db db.IDbImp) error {
+	app := core.GetApp(c)
+	err := app.UseDb(func(db core.IDbImp) error {
 		user, err := db.GetUserInfoWithMobile(args.Mobile)
 		if err != nil {
 			rv.Meta = 102
@@ -67,7 +110,7 @@ func loginApi(c *gin.Context) {
 
 func userInfoApi(c *gin.Context) {
 	uid := GetAppUserId(c)
-	app := db.GetApp(c)
+	app := core.GetApp(c)
 	type result struct {
 		Meta   int          `json:"meta"`
 		Mobile string       `json:"mobile"`
@@ -75,7 +118,7 @@ func userInfoApi(c *gin.Context) {
 		Locks  xginx.Amount `json:"locks"` //锁定的
 	}
 	res := result{Meta: 0}
-	err := app.UseDb(func(sdb db.IDbImp) error {
+	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)
 		if err != nil {
 			res.Meta = 100

@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"github.com/cxuhua/xmgrs/db"
+	"github.com/cxuhua/xmgrs/core"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,7 +32,7 @@ func InitHandler(ctx context.Context) *gin.Engine {
 	m.Use(gin.Logger(), gin.Recovery())
 	m.Use(gin.ErrorLogger())
 	v1 := m.Group("/v1")
-	v1.Use(db.AppHandler(ctx))
+	v1.Use(core.AppHandler(ctx))
 	ApiEntry(v1)
 	return m
 }
@@ -51,23 +50,27 @@ func IsLogin(c *gin.Context) {
 		Token string `header:"X-Access-Token"`
 	}{}
 	if err := c.ShouldBindHeader(&args); err != nil {
-		c.AbortWithError(http.StatusUnauthorized, err)
+		c.Error(NewError(1000, err))
+		c.Abort()
 		return
 	}
-	app := db.GetApp(c)
+	app := core.GetApp(c)
 	tk, err := app.DecryptToken(args.Token)
 	if err != nil {
-		c.AbortWithError(http.StatusUnauthorized, err)
+		c.Error(NewError(1000, err))
+		c.Abort()
 		return
 	}
 	uid, err := app.GetUserId(tk)
 	if err != nil {
-		c.AbortWithError(http.StatusUnauthorized, err)
+		c.Error(NewError(1000, err))
+		c.Abort()
 		return
 	}
 	oid, err := primitive.ObjectIDFromHex(uid)
 	if err != nil {
-		c.AbortWithError(http.StatusUnauthorized, err)
+		c.Error(NewError(1000, err))
+		c.Abort()
 		return
 	}
 	c.Set(AppUserIdKey, oid)
