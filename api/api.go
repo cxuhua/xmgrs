@@ -27,7 +27,7 @@ func NewError(code int, msg interface{}) *gin.Error {
 }
 
 //获取默认gin引擎
-func InitHandler(ctx context.Context) *gin.Engine {
+func InitEngine(ctx context.Context) *gin.Engine {
 	m := gin.New()
 	m.Use(gin.Logger(), gin.Recovery())
 	m.Use(gin.ErrorLogger())

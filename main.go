@@ -42,10 +42,11 @@ func (lis *mylis) runHttp() {
 	//创建一个全局连接
 	lis.app = core.InitApp(lis.ctx)
 	//
-	handler := api.InitHandler(lis.ctx)
+	m := api.InitEngine(lis.ctx)
+
 	lis.xhttp = &http.Server{
 		Addr:    config.HttpAddr,
-		Handler: handler,
+		Handler: m,
 	}
 	//启动http服务
 	if err := lis.xhttp.ListenAndServe(); err != nil {
