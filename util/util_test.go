@@ -1,16 +1,8 @@
 package util
 
 import (
-	"context"
 	"log"
 	"testing"
-	"time"
-
-	"github.com/go-redis/redis/v7"
-
-	"github.com/vmihailenco/taskq/v2"
-
-	"github.com/vmihailenco/taskq/v2/redisq"
 )
 
 func TestAes(t *testing.T) {
@@ -29,37 +21,4 @@ func TestAes(t *testing.T) {
 	if s != string(d) {
 		t.Fatal("dec enc failed")
 	}
-}
-
-var Redis = redis.NewClient(&redis.Options{
-	Addr: ":6379",
-})
-
-var (
-	QueueFactory = redisq.NewFactory()
-	MainQueue    = QueueFactory.RegisterQueue(&taskq.QueueOptions{
-		Name:  "api-worker",
-		Redis: Redis,
-	})
-	CountTask = taskq.RegisterTask(&taskq.TaskOptions{
-		Name: "counter",
-		Handler: func() error {
-			log.Println("Handler")
-			return nil
-		},
-	})
-)
-
-func TestTaskQ(t *testing.T) {
-	go func() {
-		err := QueueFactory.StartConsumers(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-	time.Sleep(time.Second * 5)
-	go func() {
-		MainQueue.Add(CountTask.WithArgs(context.Background()))
-	}()
-	time.Sleep(time.Hour)
 }

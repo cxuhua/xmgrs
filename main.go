@@ -71,7 +71,7 @@ func (lis *mylis) OnStop(sig os.Signal) {
 	if lis.app != nil {
 		lis.app.Close()
 	}
-	ctx, cancel := context.WithTimeout(lis.ctx, time.Second*15)
+	ctx, cancel := context.WithTimeout(lis.ctx, time.Second*5)
 	defer cancel()
 	err := lis.xhttp.Shutdown(ctx)
 	if err != nil {

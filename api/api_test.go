@@ -37,7 +37,7 @@ func (st *ApiTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
 
 	gin.SetMode(gin.TestMode)
-	st.m = InitHandler(st.ctx)
+	st.m = InitEngine(st.ctx)
 
 	app := core.InitApp(st.ctx)
 	err := app.UseTx(func(sdb core.IDbImp) error {
@@ -112,15 +112,15 @@ func (st *ApiTestSuite) Login() error {
 	v.Set("mobile", st.mobile)
 	v.Set("pass", "xh0714")
 	r := struct {
-		Meta  int    `json:"meta"`
+		Code  int    `json:"code"`
 		Token string `json:"token"`
 	}{}
 	err := st.Post("/v1/login", v, &r)
 	if err != nil {
 		return err
 	}
-	if r.Meta != 0 {
-		return fmt.Errorf("meta error = %d", r.Meta)
+	if r.Code != 0 {
+		return fmt.Errorf("meta error = %d", r.Code)
 	}
 	st.token = r.Token
 	return nil

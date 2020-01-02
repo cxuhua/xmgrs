@@ -21,36 +21,36 @@ func registerApi(c *gin.Context) {
 		Code   string `form:"code"` //手机验证码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
-		c.Error(NewError(100, err))
+		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
 	if args.Mobile == "" || args.Pass == "" {
-		c.Error(NewError(101, "mobile or pass args error"))
+		c.JSON(http.StatusOK, NewModel(101, "mobile or pass args error"))
 		return
 	}
 	if args.Code != "9527" {
-		c.Error(NewError(102, "code error"))
+		c.JSON(http.StatusOK, NewModel(102, "code error"))
 		return
 	}
 	type result struct {
-		Meta int `json:"meta"`
+		Code int `json:"meta"`
 	}
 	rv := result{
-		Meta: 0,
+		Code: 0,
 	}
 	app := core.GetApp(c)
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfoWithMobile(args.Mobile)
 		if err == nil {
-			rv.Meta = 103
+			rv.Code = 103
 			return errors.New("mobile exists")
 		}
 		user = core.NewUser(args.Mobile, []byte(args.Pass))
-		rv.Meta = 104
+		rv.Code = 104
 		return sdb.InsertUser(user)
 	})
 	if err != nil {
-		c.Error(NewError(rv.Meta, err))
+		c.JSON(http.StatusOK, NewModel(rv.Code, err))
 		return
 	}
 	c.JSON(http.StatusOK, rv)
@@ -62,47 +62,47 @@ func loginApi(c *gin.Context) {
 		Pass   string `form:"pass"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
-		c.Error(NewError(100, err))
+		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
 	if args.Mobile == "" || args.Pass == "" {
-		c.Error(NewError(101, "mobile or pass args error"))
+		c.JSON(http.StatusOK, NewModel(101, "mobile or pass args error"))
 		return
 	}
 	type result struct {
-		Meta  int    `json:"meta"`
+		Code  int    `json:"code"`
 		Token string `json:"token"`
 	}
 	rv := result{
-		Meta: 0,
+		Code: 0,
 	}
 	app := core.GetApp(c)
 	err := app.UseDb(func(db core.IDbImp) error {
 		user, err := db.GetUserInfoWithMobile(args.Mobile)
 		if err != nil {
-			rv.Meta = 102
+			rv.Code = 102
 			return fmt.Errorf("get user info error %w", err)
 		}
 		if !user.CheckPass(args.Pass) {
-			rv.Meta = 103
+			rv.Code = 103
 			return errors.New("password error")
 		}
 		tk := app.GenToken()
 		err = db.SetUserToken(user.Id, tk)
 		if err != nil {
-			rv.Meta = 104
+			rv.Code = 104
 			return err
 		}
 		err = app.SetUserId(tk, user.Id.Hex(), time.Hour*24*7)
 		if err != nil {
-			rv.Meta = 105
+			rv.Code = 105
 			return err
 		}
 		rv.Token = app.EncryptToken(tk)
 		return nil
 	})
 	if err != nil {
-		c.Error(NewError(rv.Meta, err))
+		c.JSON(http.StatusOK, NewModel(rv.Code, err))
 		return
 	}
 	c.JSON(http.StatusOK, rv)
@@ -122,23 +122,23 @@ func listCoinsApi(c *gin.Context) {
 		Height  uint32        `json:"height"`  //所在区块高度
 	}
 	type result struct {
-		Meta  int    `json:"meta"`
+		Code  int    `json:"code"`
 		Items []item `json:"items"`
 	}
-	res := result{Meta: 0}
+	res := result{Code: 0}
 	bi := xginx.GetBlockIndex()
 	spent := bi.NextHeight()
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)
 		if err != nil {
-			res.Meta = 100
+			res.Code = 100
 			return err
 		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)
 		if err != nil {
-			res.Meta = 101
+			res.Code = 101
 			return err
 		}
 		for _, coin := range coins.All {
@@ -159,7 +159,7 @@ func listCoinsApi(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		c.Error(NewError(res.Meta, err))
+		c.JSON(http.StatusOK, NewModel(res.Code, err))
 		return
 	}
 	c.JSON(http.StatusOK, res)
@@ -169,23 +169,23 @@ func userInfoApi(c *gin.Context) {
 	uid := GetAppUserId(c)
 	app := core.GetApp(c)
 	type result struct {
-		Meta   int          `json:"meta"`
+		Code   int          `json:"code"`
 		Mobile string       `json:"mobile"`
 		Coins  xginx.Amount `json:"coins"` //可用余额
 		Locks  xginx.Amount `json:"locks"` //锁定的
 	}
-	res := result{Meta: 0}
+	res := result{Code: 0}
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)
 		if err != nil {
-			res.Meta = 100
+			res.Code = 100
 			return err
 		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)
 		if err != nil {
-			res.Meta = 101
+			res.Code = 101
 			return err
 		}
 		res.Coins = coins.Coins.Balance()
@@ -194,7 +194,7 @@ func userInfoApi(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		c.Error(NewError(res.Meta, err))
+		c.JSON(http.StatusOK, NewModel(res.Code, err))
 		return
 	}
 	c.JSON(http.StatusOK, res)

@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"net/http"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -11,17 +11,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Model struct {
+	Code  int    `json:"code"`
+	Error string `json:"error"`
+}
+
 // 创建错误信息
-func NewError(code int, msg interface{}) *gin.Error {
-	err := &gin.Error{}
-	err.Meta = code
+func NewModel(code int, msg interface{}) Model {
+	err := Model{}
+	err.Code = code
 	switch msg.(type) {
 	case error:
-		err.Err = msg.(error)
+		err.Error = msg.(error).Error()
 	case string:
-		err.Err = errors.New(msg.(string))
+		err.Error = msg.(string)
 	default:
-		err.Err = errors.New(fmt.Sprintf("%v", msg))
+		err.Error = fmt.Sprintf("%v", msg)
 	}
 	return err
 }
@@ -30,7 +35,6 @@ func NewError(code int, msg interface{}) *gin.Error {
 func InitEngine(ctx context.Context) *gin.Engine {
 	m := gin.New()
 	m.Use(gin.Logger(), gin.Recovery())
-	m.Use(gin.ErrorLogger())
 	v1 := m.Group("/v1")
 	v1.Use(core.AppHandler(ctx))
 	ApiEntry(v1)
@@ -57,27 +61,23 @@ func IsLogin(c *gin.Context) {
 		Token string `header:"X-Access-Token"`
 	}{}
 	if err := c.ShouldBindHeader(&args); err != nil {
-		c.Error(NewError(1000, err))
-		c.Abort()
+		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
 	app := core.GetApp(c)
 	tk, err := app.DecryptToken(args.Token)
 	if err != nil {
-		c.Error(NewError(1000, err))
-		c.Abort()
+		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
 	uid, err := app.GetUserId(tk)
 	if err != nil {
-		c.Error(NewError(1000, err))
-		c.Abort()
+		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
 	oid, err := primitive.ObjectIDFromHex(uid)
 	if err != nil {
-		c.Error(NewError(1000, err))
-		c.Abort()
+		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
 	c.Set(AppUserIdKey, oid)
