@@ -5,13 +5,14 @@ import "github.com/cxuhua/xginx"
 func (st *ApiTestSuite) TestGetUserInfo() {
 	type result struct {
 		Code   int          `json:"code"`
+		Error  string       `json:"error"`
 		Mobile string       `json:"mobile"`
 		Coins  xginx.Amount `json:"coins"`
 		Locks  xginx.Amount `json:"locks"`
 	}
 	res := &result{}
 	err := st.Get("/v1/user/info", res)
-	st.Require().Equal(res.Code, 0, "code error")
+	st.Require().Equal(res.Code, 0, res.Error)
 	st.Require().NoError(err)
 	st.Assert().Equal(res.Mobile, st.mobile, "mobile error")
 	//101个区块，2个coinbase可用，99个锁定
@@ -32,11 +33,12 @@ func (st *ApiTestSuite) TestGetUserCoins() {
 	}
 	type result struct {
 		Code  int    `json:"code"`
-		Meta  int    `json:"meta"`
+		Error string `json:"error"`
 		Items []item `json:"items"`
 	}
-	res := &result{Meta: 0}
+	res := &result{}
 	err := st.Get("/v1/user/coins", res)
+	st.Require().Equal(res.Code, 0, res.Error)
 	st.Require().NoError(err)
 	//获取用户的金额列表
 }
