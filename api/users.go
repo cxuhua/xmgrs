@@ -197,6 +197,5 @@ func userInfoApi(c *gin.Context) {
 		c.Error(NewError(res.Meta, err))
 		return
 	}
-
 	c.JSON(http.StatusOK, res)
 }
