@@ -51,6 +51,7 @@ func NewAccountFrom(uid primitive.ObjectID, acc *xginx.Account) (*TAccount, erro
 	a.Arb = acc.Arb
 	a.Pks = acc.GetPks()
 	a.Pkh = acc.GetPkhs()
+	a.Tags = []string{}
 	return a, nil
 }
 
@@ -76,13 +77,15 @@ func NewAccount(db IDbImp, uid primitive.ObjectID, num uint8, less uint8, arb bo
 
 //账户管理
 type TAccount struct {
-	Id     xginx.Address      `bson:"_id"`
-	UserId primitive.ObjectID `bson:"uid"` //谁创建的
-	Num    uint8              `bson:"num"`
-	Less   uint8              `bson:"less"`
-	Arb    uint8              `bson:"arb"`
-	Pks    []xginx.PKBytes    `bson:"pks"`
-	Pkh    []xginx.HASH160    `bson:"pkh"` //相关的私钥
+	Id     xginx.Address      `bson:"_id"`  //账号地址id
+	UserId primitive.ObjectID `bson:"uid"`  //谁创建的
+	Tags   []string           `bson:"tags"` //标签，分组用
+	Num    uint8              `bson:"num"`  //总的密钥数量
+	Less   uint8              `bson:"less"` //至少通过的签名数量
+	Arb    uint8              `bson:"arb"`  //是否仲裁
+	Pks    []xginx.PKBytes    `bson:"pks"`  //公钥
+	Pkh    []xginx.HASH160    `bson:"pkh"`  //相关的私钥
+	Desc   string             `bson:"desc"` //描述
 }
 
 //获取第几个私钥
