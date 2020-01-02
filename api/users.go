@@ -108,6 +108,63 @@ func loginApi(c *gin.Context) {
 	c.JSON(http.StatusOK, rv)
 }
 
+//获取可用的金额列表
+func listCoinsApi(c *gin.Context) {
+	uid := GetAppUserId(c)
+	app := core.GetApp(c)
+	type item struct {
+		Id      xginx.Address `json:"id"`      //所属账号地址
+		Matured bool          `json:"matured"` //是否成熟
+		Pool    bool          `json:"pool"`    //是否是内存池中的
+		Value   xginx.Amount  `json:"value"`   //数量
+		TxId    xginx.HASH256 `json:"tx"`      //交易id
+		Index   uint32        `json:"index"`   //输出索引
+		Height  uint32        `json:"height"`  //所在区块高度
+	}
+	type result struct {
+		Meta  int    `json:"meta"`
+		Items []item `json:"items"`
+	}
+	res := result{Meta: 0}
+	bi := xginx.GetBlockIndex()
+	spent := bi.NextHeight()
+	err := app.UseDb(func(sdb core.IDbImp) error {
+		user, err := sdb.GetUserInfo(uid)
+		if err != nil {
+			res.Meta = 100
+			return err
+		}
+		//获取用户余额
+		bi := xginx.GetBlockIndex()
+		coins, err := user.ListCoins(sdb, bi)
+		if err != nil {
+			res.Meta = 101
+			return err
+		}
+		for _, coin := range coins.All {
+			i := item{}
+			id, err := xginx.EncodeAddress(coin.CPkh)
+			if err != nil {
+				continue
+			}
+			i.Id = id
+			i.Matured = coin.IsMatured(spent)
+			i.Pool = coin.IsPool()
+			i.Value = coin.Value
+			i.TxId = coin.TxId
+			i.Index = coin.Index.ToUInt32()
+			i.Height = coin.Height.ToUInt32()
+			res.Items = append(res.Items, i)
+		}
+		return nil
+	})
+	if err != nil {
+		c.Error(NewError(res.Meta, err))
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 func userInfoApi(c *gin.Context) {
 	uid := GetAppUserId(c)
 	app := core.GetApp(c)

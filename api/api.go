@@ -41,8 +41,15 @@ const (
 	AppUserIdKey = "AppUserIdKey"
 )
 
+//获取用户id
 func GetAppUserId(c *gin.Context) primitive.ObjectID {
 	return c.MustGet(AppUserIdKey).(primitive.ObjectID)
+}
+
+//获取用户信息
+func GetAppUserInfo(db core.IDbImp, c *gin.Context) (*core.TUser, error) {
+	uid := GetAppUserId(c)
+	return db.GetUserInfo(uid)
 }
 
 func IsLogin(c *gin.Context) {
@@ -81,4 +88,5 @@ func ApiEntry(g *gin.RouterGroup) {
 	g.POST("/login", loginApi)
 	a := g.Group("/", IsLogin)
 	a.GET("/user/info", userInfoApi)
+	a.GET("/user/coins", listCoinsApi)
 }

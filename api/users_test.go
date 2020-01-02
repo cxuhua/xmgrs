@@ -15,4 +15,25 @@ func (st *ApiTestSuite) TestGetUserInfo() {
 	//101个区块，2个coinbase可用，99个锁定
 	st.Assert().Equal(res.Coins, 100*xginx.COIN, "coins error")
 	st.Assert().Equal(res.Locks, 4950*xginx.COIN, "locks error")
+	//获取用户的金额列表
+}
+
+func (st *ApiTestSuite) TestGetUserCoins() {
+	type item struct {
+		Id      xginx.Address `json:"id"`      //所属账号地址
+		Matured bool          `json:"matured"` //是否成熟
+		Pool    bool          `json:"pool"`    //是否是内存池中的
+		Value   xginx.Amount  `json:"value"`   //数量
+		TxId    xginx.HASH256 `json:"tx"`      //交易id
+		Index   uint32        `json:"index"`   //输出索引
+		Height  uint32        `json:"height"`  //所在区块高度
+	}
+	type result struct {
+		Meta  int    `json:"meta"`
+		Items []item `json:"items"`
+	}
+	res := &result{Meta: 0}
+	err := st.Get("/v1/user/coins", res)
+	st.Require().NoError(err)
+	//获取用户的金额列表
 }

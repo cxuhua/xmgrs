@@ -52,6 +52,7 @@ func (st *ApiTestSuite) SetupSuite() {
 		if err != nil {
 			return err
 		}
+		xginx.LogInfo("Test Account = ", acc.GetAddress())
 		//生成101个区块
 		st.bi = xginx.NewTestBlockIndex(101, acc.GetAddress())
 		return err
