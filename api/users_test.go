@@ -27,7 +27,7 @@ func (st *ApiTestSuite) TestGetUserCoins() {
 		Matured bool          `json:"matured"` //是否成熟
 		Pool    bool          `json:"pool"`    //是否是内存池中的
 		Value   xginx.Amount  `json:"value"`   //数量
-		TxId    xginx.HASH256 `json:"tx"`      //交易id
+		TxId    string        `json:"tx"`      //交易id
 		Index   uint32        `json:"index"`   //输出索引
 		Height  uint32        `json:"height"`  //所在区块高度
 	}

@@ -117,7 +117,7 @@ func listCoinsApi(c *gin.Context) {
 		Matured bool          `json:"matured"` //是否成熟
 		Pool    bool          `json:"pool"`    //是否是内存池中的
 		Value   xginx.Amount  `json:"value"`   //数量
-		TxId    xginx.HASH256 `json:"tx"`      //交易id
+		TxId    string        `json:"tx"`      //交易id
 		Index   uint32        `json:"index"`   //输出索引
 		Height  uint32        `json:"height"`  //所在区块高度
 	}
@@ -151,7 +151,7 @@ func listCoinsApi(c *gin.Context) {
 			i.Matured = coin.IsMatured(spent)
 			i.Pool = coin.IsPool()
 			i.Value = coin.Value
-			i.TxId = coin.TxId
+			i.TxId = coin.TxId.String()
 			i.Index = coin.Index.ToUInt32()
 			i.Height = coin.Height.ToUInt32()
 			res.Items = append(res.Items, i)
