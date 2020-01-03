@@ -42,18 +42,12 @@ func InitEngine(ctx context.Context) *gin.Engine {
 }
 
 const (
-	AppUserIdKey = "AppUserIdKey"
+	AppUserKey = "AppUserKey"
 )
 
 //获取用户id
-func GetAppUserId(c *gin.Context) primitive.ObjectID {
-	return c.MustGet(AppUserIdKey).(primitive.ObjectID)
-}
-
-//获取用户信息
-func GetAppUserInfo(db core.IDbImp, c *gin.Context) (*core.TUser, error) {
-	uid := GetAppUserId(c)
-	return db.GetUserInfo(uid)
+func GetAppUserInfo(c *gin.Context) *core.TUser {
+	return c.MustGet(AppUserKey).(*core.TUser)
 }
 
 func IsLogin(c *gin.Context) {
@@ -70,17 +64,26 @@ func IsLogin(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
-	uid, err := app.GetUserId(tk)
+	err = app.UseDb(func(db core.IDbImp) error {
+		uid, err := db.GetUserId(tk)
+		if err != nil {
+			return err
+		}
+		oid, err := primitive.ObjectIDFromHex(uid)
+		if err != nil {
+			return err
+		}
+		user, err := db.GetUserInfo(oid)
+		if err != nil {
+			return err
+		}
+		c.Set(AppUserKey, user)
+		return nil
+	})
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
-	oid, err := primitive.ObjectIDFromHex(uid)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
-		return
-	}
-	c.Set(AppUserIdKey, oid)
 	c.Next()
 }
 

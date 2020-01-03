@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"time"
 
 	"github.com/cxuhua/xginx"
 
@@ -61,12 +62,27 @@ type IDbImp interface {
 	ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	//自增密钥索引
 	IncDeterIdx(name string, id interface{}) error
+	//保存用户id
+	SetUserId(k string, id string, time time.Duration) error
+	//获取用户id
+	GetUserId(k string) (string, error)
 }
 
 type dbimp struct {
 	mongo.SessionContext
 	redv *redis.Conn
 	isTx bool
+}
+
+//获取token
+func (db *dbimp) GetUserId(k string) (string, error) {
+	s := db.redv.Get(k)
+	return s.Result()
+}
+
+//保存用户id
+func (db *dbimp) SetUserId(k string, id string, time time.Duration) error {
+	return db.redv.Set(k, id, time).Err()
 }
 
 func (db *dbimp) table(name string, opts ...*options.CollectionOptions) *mongo.Collection {

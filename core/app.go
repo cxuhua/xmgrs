@@ -101,18 +101,6 @@ func (app *App) GenToken() string {
 	return id.Hex()
 }
 
-//time=0不过期
-func (app *App) SetUserId(k string, id string, time time.Duration) error {
-	s := app.redis.Set(k, id, time)
-	return s.Err()
-}
-
-//获取token
-func (app *App) GetUserId(k string) (string, error) {
-	s := app.redis.Get(k)
-	return s.Result()
-}
-
 //加密token
 func (app *App) EncryptToken(token string) string {
 	tk := fmt.Sprintf(TokenFormat, token)

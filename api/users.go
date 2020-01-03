@@ -93,7 +93,7 @@ func loginApi(c *gin.Context) {
 			rv.Code = 104
 			return err
 		}
-		err = app.SetUserId(tk, user.Id.Hex(), time.Hour*24*7)
+		err = db.SetUserId(tk, user.Id.Hex(), time.Hour*24*7)
 		if err != nil {
 			rv.Code = 105
 			return err
@@ -110,8 +110,8 @@ func loginApi(c *gin.Context) {
 
 //获取可用的金额列表
 func listCoinsApi(c *gin.Context) {
-	uid := GetAppUserId(c)
 	app := core.GetApp(c)
+	user := GetAppUserInfo(c)
 	type item struct {
 		Id      xginx.Address `json:"id"`      //所属账号地址
 		Matured bool          `json:"matured"` //是否成熟
@@ -129,11 +129,6 @@ func listCoinsApi(c *gin.Context) {
 	bi := xginx.GetBlockIndex()
 	spent := bi.NextHeight()
 	err := app.UseDb(func(sdb core.IDbImp) error {
-		user, err := sdb.GetUserInfo(uid)
-		if err != nil {
-			res.Code = 100
-			return err
-		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)
@@ -166,8 +161,8 @@ func listCoinsApi(c *gin.Context) {
 }
 
 func userInfoApi(c *gin.Context) {
-	uid := GetAppUserId(c)
 	app := core.GetApp(c)
+	user := GetAppUserInfo(c)
 	type result struct {
 		Code   int          `json:"code"`
 		Mobile string       `json:"mobile"`
@@ -176,11 +171,6 @@ func userInfoApi(c *gin.Context) {
 	}
 	res := result{Code: 0}
 	err := app.UseDb(func(sdb core.IDbImp) error {
-		user, err := sdb.GetUserInfo(uid)
-		if err != nil {
-			res.Code = 100
-			return err
-		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)
