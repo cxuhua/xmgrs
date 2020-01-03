@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/cxuhua/xginx"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,6 +11,5 @@ func getTxInfoApi(c *gin.Context) {
 
 //获取用户交易
 func listTxsApi(c *gin.Context) {
-	bi := xginx.GetBlockIndex()
-	bi.ListTxs()
+
 }

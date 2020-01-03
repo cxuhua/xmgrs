@@ -95,7 +95,7 @@ type App struct {
 	mongo *mongo.Client
 }
 
-//生成一个加密的token
+//生成一个token
 func (app *App) GenToken() string {
 	id := primitive.NewObjectID()
 	return id.Hex()
@@ -147,7 +147,7 @@ func (app *App) DecryptToken(cks string) (string, error) {
 }
 
 func (app *App) Close() {
-
+	//
 }
 
 //启用数据库和redis
@@ -162,6 +162,13 @@ func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error
 		//创建数据对象
 		return fn(NewDbImp(sctx, conn, false))
 	})
+}
+
+//单独使用redis
+func (app *App) UseRedis(fn func(conn *redis.Conn) error) error {
+	conn := rediscli.Conn()
+	defer conn.Close()
+	return fn(conn)
 }
 
 //使用默认超时
