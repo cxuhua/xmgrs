@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"hash"
 	"math/big"
+	"time"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -134,6 +135,7 @@ func NewPrivate(uid primitive.ObjectID, dk *DeterKey, desc string) *TPrivate {
 	dp.UserId = uid
 	dp.Cipher = CipherTypeNone
 	dp.Desc = desc
+	dp.Time = time.Now().Unix()
 	return dp
 }
 
@@ -168,7 +170,8 @@ type TPrivate struct {
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
 	Deter  *DeterKey          `bson:"deter"`  //私钥内容
-	Desc   string             `bson:"desc"`
+	Time   int64              `json:"time"`   //创建时间
+	Desc   string             `bson:"desc"`   //描述
 }
 
 func (p *TPrivate) New(db IDbImp, desc string) (*TPrivate, error) {

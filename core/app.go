@@ -3,11 +3,12 @@ package core
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/cxuhua/xginx"
 
 	"github.com/cxuhua/xmgrs/util"
 
@@ -28,7 +29,7 @@ const (
 
 /*
 //数据库索引
-core.accounts.ensureIndex({uid:1})
+core.accounts.ensureIndex({uid:1,tags:1})
 core.accounts.ensureIndex({pkh:1})
 core.privates.ensureIndex({uid:1})
 core.txs.ensureIndex({uid:1})
@@ -108,12 +109,12 @@ func (app *App) EncryptToken(token string) string {
 	if err != nil {
 		panic(err)
 	}
-	return base64.URLEncoding.EncodeToString(ck)
+	return xginx.B58Encode(ck, xginx.BitcoinAlphabet)
 }
 
 //解密token
 func (app *App) DecryptToken(cks string) (string, error) {
-	ck, err := base64.URLEncoding.DecodeString(cks)
+	ck, err := xginx.B58Decode(cks, xginx.BitcoinAlphabet)
 	if err != nil {
 		return "", err
 	}

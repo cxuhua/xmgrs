@@ -13,6 +13,178 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//签名一个交易
+func signTxApi(c *gin.Context) {
+	args := struct {
+		Id string `form:"id"`
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	app := core.GetApp(c)
+	user := GetAppUserInfo(c)
+	id := xginx.NewHASH256(args.Id)
+	err := app.UseTx(func(db core.IDbImp) error {
+		_, err := db.GetTx(id.Bytes())
+		if err != nil {
+			return err
+		}
+		sigs, err := db.ListUserSigs(user.Id, id)
+		if err != nil {
+			return err
+		}
+		for _, sig := range sigs {
+			if sig.IsSign {
+				panic(errors.New("sig is signed"))
+			}
+			err := sig.Sign(db)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	c.JSON(http.StatusOK, NewModel(0, "SignOK"))
+}
+
+type TTxModel struct {
+	Id       string       `json:"id"`
+	Ver      uint32       `json:"ver"`
+	Ins      []TxInModel  `json:"ins"`
+	Outs     []TxOutModel `json:"outs"`
+	LockTime uint32       `json:"lt"`
+	Desc     string       `json:"desc"`
+}
+
+func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
+	m := TTxModel{
+		Id:       xginx.NewHASH256(ttx.Id).String(),
+		Ver:      ttx.Ver,
+		Ins:      []TxInModel{},
+		Outs:     []TxOutModel{},
+		LockTime: ttx.LockTime,
+		Desc:     ttx.Desc,
+	}
+	for _, in := range ttx.Ins {
+		out, err := in.ToTxIn().LoadTxOut(bi)
+		if err != nil {
+			panic(err)
+		}
+		addr, err := out.Script.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+		inv := TxInModel{
+			Addr:     addr,
+			Value:    out.Value,
+			Sequence: in.Sequence,
+		}
+		m.Ins = append(m.Ins, inv)
+	}
+	for _, out := range ttx.Outs {
+		addr, err := out.Script.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+		outv := TxOutModel{
+			Addr:  addr,
+			Value: xginx.Amount(out.Value),
+		}
+		m.Outs = append(m.Outs, outv)
+	}
+	return m
+}
+
+//获取待签名交易
+func ListUserSignTxsApi(c *gin.Context) {
+	app := core.GetApp(c)
+	user := GetAppUserInfo(c)
+	var ttxs []*core.TTx = nil
+	err := app.UseDb(func(db core.IDbImp) error {
+		txs, err := db.ListUserTxs(user.Id, true)
+		if err != nil {
+			return err
+		}
+		ttxs = txs
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	type result struct {
+		Code  int        `json:"code"`
+		Items []TTxModel `json:"items"`
+	}
+	res := result{
+		Code:  0,
+		Items: []TTxModel{},
+	}
+	bi := xginx.GetBlockIndex()
+	for _, ttx := range ttxs {
+		res.Items = append(res.Items, NewTTxModel(ttx, bi))
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+//获取用户的账号
+func listUserAccountsApi(c *gin.Context) {
+	//账户管理
+	type item struct {
+		Id   xginx.Address `json:"id"`   //账号地址id
+		Tags []string      `json:"tags"` //标签，分组用
+		Num  uint8         `json:"num"`  //总的密钥数量
+		Less uint8         `json:"less"` //至少通过的签名数量
+		Arb  bool          `json:"arb"`  //是否仲裁
+		Pks  []string      `json:"pks"`  //相关的私钥
+		Desc string        `json:"desc"` //描述
+	}
+	type result struct {
+		Code  int    `json:"code"`
+		Items []item `json:"items"`
+	}
+	res := result{
+		Code:  0,
+		Items: []item{},
+	}
+	app := core.GetApp(c)
+	user := GetAppUserInfo(c)
+	var accs []*core.TAccount = nil
+	err := app.UseDb(func(db core.IDbImp) error {
+		acc, err := db.ListAccounts(user.Id)
+		if err != nil {
+			return err
+		}
+		accs = acc
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	for _, v := range accs {
+		i := item{
+			Id:   v.Id,
+			Tags: v.Tags,
+			Num:  v.Num,
+			Less: v.Less,
+			Arb:  v.Arb != xginx.InvalidArb,
+			Desc: v.Desc,
+			Pks:  []string{},
+		}
+		for _, h := range v.Pkh {
+			i.Pks = append(i.Pks, core.GetPrivateId(h))
+		}
+		res.Items = append(res.Items, i)
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 //注册
 func registerApi(c *gin.Context) {
 	args := struct {
@@ -117,11 +289,13 @@ func listCoinsApi(c *gin.Context) {
 	}
 	type result struct {
 		Model
-		Items []item `json:"items"`
+		Height uint32 `json:"height"` //当前区块高度
+		Items  []item `json:"items"`
 	}
 	res := result{}
 	bi := xginx.GetBlockIndex()
 	spent := bi.NextHeight()
+	res.Height = bi.Height()
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		//获取用户余额
 		bi := xginx.GetBlockIndex()

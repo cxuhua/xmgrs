@@ -24,16 +24,23 @@ import (
 
 type ApiTestSuite struct {
 	suite.Suite
-	ctx    context.Context
-	m      *gin.Engine
-	mobile string
-	token  string
-	bi     *xginx.BlockIndex
+	ctx   context.Context
+	token string
+	m     *gin.Engine
+	A     string
+	au    *core.TUser
+	aa    *core.TAccount
+	bi    *xginx.BlockIndex
+	B     string
+	bu    *core.TUser
+	ab    *core.TAccount
 }
 
 func (st *ApiTestSuite) SetupSuite() {
 	st.ctx = context.Background()
-	st.mobile = "17716858036"
+
+	st.A = "17716858036"
+	st.B = "18602851011"
 
 	xginx.NewTestConfig()
 
@@ -42,22 +49,40 @@ func (st *ApiTestSuite) SetupSuite() {
 
 	app := core.InitApp(st.ctx)
 	err := app.UseTx(func(sdb core.IDbImp) error {
-		//创建测试用户
-		user := core.NewUser(st.mobile, []byte("xh0714"))
-		err := sdb.InsertUser(user)
+		//创建测试用户A
+		a := core.NewUser(st.A, []byte("xh0714"))
+		err := sdb.InsertUser(a)
 		if err != nil {
 			return err
 		}
+		st.au = a
 		//创建测试账号
-		acc, err := user.SaveAccount(sdb, 1, 1, false)
+		aa, err := a.SaveAccount(sdb, 1, 1, false)
 		if err != nil {
 			return err
 		}
-		xginx.LogInfo("Test Account = ", acc.GetAddress())
+		st.aa = aa
+		xginx.LogInfo("Test Account = ", aa.GetAddress())
 		//生成101个区块
-		st.bi = xginx.NewTestBlockIndex(101, acc.GetAddress())
+		st.bi = xginx.NewTestBlockIndex(101, aa.GetAddress())
+		//创建测试用户B
+		b := core.NewUser(st.B, []byte("xh0714"))
+		err = sdb.InsertUser(b)
+		if err != nil {
+			return err
+		}
+		st.bu = b
+		//创建测试账号
+		ab, err := b.SaveAccount(sdb, 1, 1, false)
+		if err != nil {
+			return err
+		}
+		st.ab = ab
 		return err
 	})
+	st.Require().NoError(err)
+	//
+	err = st.Login()
 	st.Require().NoError(err)
 }
 
@@ -104,7 +129,7 @@ func (st *ApiTestSuite) Get(uri string) (jsoniter.Any, error) {
 //登陆
 func (st *ApiTestSuite) Login() error {
 	v := url.Values{}
-	v.Set("mobile", st.mobile)
+	v.Set("mobile", st.A)
 	v.Set("pass", "xh0714")
 
 	any, err := st.Post("/v1/login", v)
@@ -123,8 +148,7 @@ func (st *ApiTestSuite) Do(w http.ResponseWriter, req *http.Request) {
 }
 
 func (st *ApiTestSuite) SetupTest() {
-	err := st.Login()
-	st.Require().NoError(err)
+
 }
 
 func (st *ApiTestSuite) TearDownTest() {
@@ -135,11 +159,14 @@ func (st *ApiTestSuite) TearDownSuite() {
 	xginx.CloseTestBlock(st.bi)
 	app := core.InitApp(st.ctx)
 	err := app.UseTx(func(sdb core.IDbImp) error {
-		user, err := sdb.GetUserInfoWithMobile(st.mobile)
+		err := sdb.DeleteUser(st.au.Id)
 		if err != nil {
 			return err
 		}
-		err = sdb.DeleteUser(user.Id)
+		err = sdb.DeleteUser(st.bu.Id)
+		if err != nil {
+			return err
+		}
 		return err
 	})
 	st.Require().NoError(err)

@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -52,6 +53,7 @@ func NewAccountFrom(uid primitive.ObjectID, acc *xginx.Account) (*TAccount, erro
 	a.Pks = acc.GetPks()
 	a.Pkh = acc.GetPkhs()
 	a.Tags = []string{}
+	a.Time = time.Now().Unix()
 	return a, nil
 }
 
@@ -85,6 +87,7 @@ type TAccount struct {
 	Arb    uint8              `bson:"arb"`  //是否仲裁
 	Pks    []xginx.PKBytes    `bson:"pks"`  //公钥
 	Pkh    []xginx.HASH160    `bson:"pkh"`  //相关的私钥
+	Time   int64              `json:"time"` //创建时间
 	Desc   string             `bson:"desc"` //描述
 }
 

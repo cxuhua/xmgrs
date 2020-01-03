@@ -8,8 +8,6 @@ import (
 
 //redis接口
 type IRedisImp interface {
-	//获取redis连接
-	GetReids() *redis.Conn
 	//保存用户id到redis
 	SetUserId(k string, id string, time time.Duration) error
 	//从redis获取用户id
@@ -29,11 +27,6 @@ func (conn *redisImp) SetUserId(k string, id string, time time.Duration) error {
 func (conn *redisImp) GetUserId(k string) (string, error) {
 	s := conn.redv.Get(k)
 	return s.Result()
-}
-
-//获取redis连接
-func (conn *redisImp) GetReids() *redis.Conn {
-	return conn.redv
 }
 
 func NewRedisImp(redv *redis.Conn) IRedisImp {

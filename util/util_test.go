@@ -1,14 +1,12 @@
 package util
 
 import (
-	"log"
 	"testing"
 )
 
 func TestAes(t *testing.T) {
 	key := "jzxc972198hasdhsad^^027302173102"
 	block := NewAESCipher([]byte(key))
-	log.Println(block.BlockSize())
 	s := "skdfjslnxvc97934734"
 	db, err := AesEncrypt(block, []byte(s))
 	if err != nil {

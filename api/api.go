@@ -64,6 +64,7 @@ func IsLogin(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
+	//查询用户信息
 	err = app.UseDb(func(db core.IDbImp) error {
 		uid, err := db.GetUserId(tk)
 		if err != nil {
@@ -92,4 +93,12 @@ func ApiEntry(g *gin.RouterGroup) {
 	a := g.Group("/", IsLogin)
 	a.GET("/user/info", userInfoApi)
 	a.GET("/user/coins", listCoinsApi)
+	a.GET("/tx/info/:id", getTxInfoApi)
+	a.GET("/list/txs/:addr", listTxsApi)
+	a.GET("/list/accounts", listUserAccountsApi)
+	a.GET("/list/sign/txs", ListUserSignTxsApi)
+	a.POST("/sign/tx", signTxApi)
+	a.GET("/list/privates", listPrivatesApi)
+	a.POST("/new/private", createUserPrivateApi)
+	a.POST("/new/account", createAccountApi)
 }

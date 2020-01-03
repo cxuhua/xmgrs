@@ -54,8 +54,10 @@ type IDbImp interface {
 	InsertSigs(sigs *TSigs) error
 	//设置签名
 	SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error
-	//获取交易管理的签名对象
+	//获取交易相关的签名对象
 	ListSigs(tid xginx.HASH256) (TxSigs, error)
+	//获取需要用户签名的交易
+	ListUserSigs(uid primitive.ObjectID, tid xginx.HASH256) (TxSigs, error)
 	//获取签名对象
 	GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, error)
 	//获取用户需要签名的交易
@@ -66,7 +68,7 @@ type IDbImp interface {
 
 type dbimp struct {
 	mongo.SessionContext
-	IRedisImp
+	redisImp
 	isTx bool
 }
 
@@ -79,7 +81,7 @@ func (db *dbimp) UseTx(fn func(db IDbImp) error) error {
 		return errors.New("tx core can't invoke Transaction")
 	}
 	_, err := db.WithTransaction(db, func(sdb mongo.SessionContext) (i interface{}, err error) {
-		return nil, fn(NewDbImp(sdb, db.GetReids(), true))
+		return nil, fn(NewDbImp(sdb, db.redv, true))
 	})
 	return err
 }
@@ -91,7 +93,7 @@ func (db *dbimp) IsTx() bool {
 func NewDbImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,
-		IRedisImp:      NewRedisImp(redv),
+		redisImp:       redisImp{redv: redv},
 		isTx:           tx,
 	}
 }

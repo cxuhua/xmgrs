@@ -69,33 +69,23 @@ func (ctx *dbimp) SetUserToken(uid primitive.ObjectID, tk string) error {
 
 //获取用户相关的账户
 func (ctx *dbimp) ListAccounts(uid primitive.ObjectID) ([]*TAccount, error) {
-	keys, err := ctx.ListPrivates(uid)
+	col := ctx.table(TAccountName)
+	rets := []*TAccount{}
+	iter, err := col.Find(ctx, bson.M{"uid": uid})
 	if err != nil {
 		return nil, err
 	}
-	col := ctx.table(TAccountName)
-	rmap := map[xginx.Address]*TAccount{}
-	for _, v := range keys {
-		iter, err := col.Find(ctx, bson.M{"pkh": v.Pkh})
+	for iter.Next(ctx) {
+		a := &TAccount{}
+		err := iter.Decode(a)
 		if err != nil {
 			return nil, err
 		}
-		for iter.Next(ctx) {
-			a := &TAccount{}
-			err := iter.Decode(a)
-			if err != nil {
-				return nil, err
-			}
-			rmap[a.Id] = a
-		}
-		err = iter.Close(ctx)
-		if err != nil {
-			return nil, err
-		}
+		rets = append(rets, a)
 	}
-	rets := []*TAccount{}
-	for _, v := range rmap {
-		rets = append(rets, v)
+	err = iter.Close(ctx)
+	if err != nil {
+		return nil, err
 	}
 	return rets, nil
 }

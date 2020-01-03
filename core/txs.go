@@ -120,9 +120,25 @@ type TTxIn struct {
 	Sequence uint32       `bson:"seq"`
 }
 
+func (in TTxIn) ToTxIn() *xginx.TxIn {
+	iv := &xginx.TxIn{}
+	iv.OutHash = xginx.NewHASH256(in.OutHash)
+	iv.OutIndex = xginx.VarUInt(in.OutIndex)
+	iv.Script = in.Script
+	iv.Sequence = in.Sequence
+	return iv
+}
+
 type TTxOut struct {
 	Value  int64        `bson:"value"`
 	Script xginx.Script `bson:"script"`
+}
+
+func (out TTxOut) ToTxOut() *xginx.TxOut {
+	ov := &xginx.TxOut{}
+	ov.Value = xginx.Amount(out.Value)
+	ov.Script = out.Script
+	return ov
 }
 
 //保存私钥id 需要签名的hash 并且标记是否已经签名
@@ -161,8 +177,9 @@ func (ss TxSigs) IsSign() bool {
 	return true
 }
 
+//临时交易信息
 type TTx struct {
-	Id       []byte             `bson:"_id"`
+	Id       []byte             `bson:"_id"` //交易id
 	UserId   primitive.ObjectID `bson:"uid"` //谁创建的交易
 	Ver      uint32             `bson:"ver"`
 	Ins      []TTxIn            `bson:"ins"`
@@ -212,6 +229,7 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	//获取每个密钥的签名
 	for idx, pkh := range acc.Pkh {
 		kid := GetPrivateId(pkh)
+		//获取需要签名的记录
 		sigs, err := st.db.GetSigs(tid, kid, hash)
 		if err != nil {
 			continue
@@ -243,18 +261,10 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 	tx.Ins = []*xginx.TxIn{}
 	tx.Outs = []*xginx.TxOut{}
 	for _, in := range stx.Ins {
-		iv := &xginx.TxIn{}
-		iv.OutHash = xginx.NewHASH256(in.OutHash)
-		iv.OutIndex = xginx.VarUInt(in.OutIndex)
-		iv.Script = in.Script
-		iv.Sequence = in.Sequence
-		tx.Ins = append(tx.Ins, iv)
+		tx.Ins = append(tx.Ins, in.ToTxIn())
 	}
 	for _, out := range stx.Outs {
-		ov := &xginx.TxOut{}
-		ov.Value = xginx.Amount(out.Value)
-		ov.Script = out.Script
-		tx.Outs = append(tx.Outs, ov)
+		tx.Outs = append(tx.Outs, out.ToTxOut())
 	}
 	tx.LockTime = stx.LockTime
 	//使用数据库中的签名设置脚本
@@ -369,10 +379,30 @@ func (ctx *dbimp) GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, e
 	return v, err
 }
 
+//获取需要uid签名的字段
+func (ctx *dbimp) ListUserSigs(uid primitive.ObjectID, tid xginx.HASH256) (TxSigs, error) {
+	col := ctx.table(TSigName)
+	iter, err := col.Find(ctx, bson.M{"uid": uid, "tid": tid, "sigb": false})
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close(ctx)
+	rets := TxSigs{}
+	for iter.Next(ctx) {
+		v := &TSigs{}
+		err := iter.Decode(v)
+		if err != nil {
+			return nil, err
+		}
+		rets = append(rets, v)
+	}
+	return rets, nil
+}
+
 //获取交易相关的签名对象
 func (ctx *dbimp) ListSigs(tid xginx.HASH256) (TxSigs, error) {
 	col := ctx.table(TSigName)
-	iter, err := col.Find(ctx, bson.M{"tid": tid})
+	iter, err := col.Find(ctx, bson.M{"tid": tid, "sigb": false})
 	if err != nil {
 		return nil, err
 	}
