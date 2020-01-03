@@ -45,6 +45,10 @@ func LoadDeterKey(s string) (*DeterKey, error) {
 	return dk, nil
 }
 
+func (k DeterKey) GetPks() xginx.PKBytes {
+	return k.GetPrivateKey().PublicKey().GetPks()
+}
+
 func (k DeterKey) GetPrivateKey() *xginx.PrivateKey {
 	pri := &xginx.PrivateKey{}
 	pri.D = new(big.Int).SetBytes(k.Root)
@@ -124,7 +128,7 @@ func GetPrivateId(pkh xginx.HASH160) string {
 func NewPrivate(uid primitive.ObjectID, dk *DeterKey, desc string) *TPrivate {
 	dp := &TPrivate{}
 	dp.Deter = dk.New(dk.Index)
-	dp.Pks = dp.Deter.GetPrivateKey().PublicKey().GetPks()
+	dp.Pks = dp.Deter.GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.Id = GetPrivateId(dp.Pkh)
 	dp.UserId = uid
@@ -165,12 +169,6 @@ type TPrivate struct {
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
 	Deter  *DeterKey          `bson:"deter"`  //私钥内容
 	Desc   string             `bson:"desc"`
-}
-
-func (p *TPrivate) GetPkh() xginx.HASH160 {
-	id := xginx.HASH160{}
-	copy(id[:], p.Id)
-	return id
 }
 
 func (p *TPrivate) New(db IDbImp, desc string) (*TPrivate, error) {

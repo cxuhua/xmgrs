@@ -17,31 +17,37 @@ import (
 
 func TestToken(t *testing.T) {
 	app := InitApp(context.Background())
-	token := app.GenToken()
-	err := app.SetUserId(token, "111", time.Second*1)
+	err := app.UseRedis(func(redv IRedisImp) error {
+		token := app.GenToken()
+		err := redv.SetUserId(token, "111", time.Second*1)
+		if err != nil {
+			panic(err)
+		}
+		ct := app.EncryptToken(token)
+		//ct 给客户端
+		dt, err := app.DecryptToken(ct)
+		if err != nil {
+			panic(err)
+		}
+		if token != dt {
+			t.Error("enc dec token error")
+		}
+		v1, err := redv.GetUserId(dt)
+		if err != nil {
+			panic(err)
+		}
+		if v1 != "111" {
+			t.Error("value error")
+		}
+		time.Sleep(time.Second * 2)
+		v2, err := redv.GetUserId(dt)
+		if err == nil {
+			t.Error("expire set error", v2)
+		}
+		return nil
+	})
 	if err != nil {
-		panic(err)
-	}
-	ct := app.EncryptToken(token)
-	//ct 给客户端
-	dt, err := app.DecryptToken(ct)
-	if err != nil {
-		panic(err)
-	}
-	if token != dt {
-		t.Error("enc dec token error")
-	}
-	v1, err := app.GetUserId(dt)
-	if err != nil {
-		panic(err)
-	}
-	if v1 != "111" {
-		t.Error("value error")
-	}
-	time.Sleep(time.Second * 2)
-	v2, err := app.GetUserId(dt)
-	if err == nil {
-		t.Error("expire set error", v2)
+		t.Fatal(err)
 	}
 }
 
