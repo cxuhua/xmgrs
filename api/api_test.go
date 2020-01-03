@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/cxuhua/xmgrs/core"
 
@@ -60,7 +61,7 @@ func (st *ApiTestSuite) SetupSuite() {
 	st.Require().NoError(err)
 }
 
-func (st *ApiTestSuite) Post(uri string, v url.Values, jv interface{}) error {
+func (st *ApiTestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
 	log.Println("POST:", v.Encode())
 	req := httptest.NewRequest(http.MethodPost, uri, strings.NewReader(v.Encode()))
 	if st.token != "" {
@@ -71,20 +72,17 @@ func (st *ApiTestSuite) Post(uri string, v url.Values, jv interface{}) error {
 	st.Do(wr, req)
 	res := wr.Result()
 	if res.StatusCode != http.StatusOK {
-		return errors.New("status error")
+		return nil, errors.New("status error")
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return err
-	}
-	if jv == nil {
-		return nil
+		return nil, err
 	}
 	log.Println("POST RECV:", string(body))
-	return json.Unmarshal(body, jv)
+	return jsoniter.Get(body), nil
 }
 
-func (st *ApiTestSuite) Get(uri string, jv interface{}) error {
+func (st *ApiTestSuite) Get(uri string) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodGet, uri, nil)
 	if st.token != "" {
 		req.Header.Set(core.TokenHeader, st.token)
@@ -93,17 +91,14 @@ func (st *ApiTestSuite) Get(uri string, jv interface{}) error {
 	st.Do(wr, req)
 	res := wr.Result()
 	if res.StatusCode != http.StatusOK {
-		return errors.New("status error")
+		return nil, errors.New("status error")
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Println("GET RECV:", string(body))
-	if jv == nil {
-		return nil
-	}
-	return json.Unmarshal(body, jv)
+	return jsoniter.Get(body), nil
 }
 
 //登陆
@@ -111,18 +106,15 @@ func (st *ApiTestSuite) Login() error {
 	v := url.Values{}
 	v.Set("mobile", st.mobile)
 	v.Set("pass", "xh0714")
-	r := struct {
-		Code  int    `json:"code"`
-		Token string `json:"token"`
-	}{}
-	err := st.Post("/v1/login", v, &r)
+
+	any, err := st.Post("/v1/login", v)
 	if err != nil {
 		return err
 	}
-	if r.Code != 0 {
-		return fmt.Errorf("meta error = %d", r.Code)
+	if any.Get("code").ToInt() != 0 {
+		return fmt.Errorf("meta error = %v", any.Get("error"))
 	}
-	st.token = r.Token
+	st.token = any.Get("token").ToString()
 	return nil
 }
 

@@ -20,7 +20,7 @@ import (
 //确定性私钥地址
 type DeterKey struct {
 	Root  []byte `bson:"root"` //私钥内容
-	Key   []byte `bson:"key"`  //私钥编码
+	Key   []byte `bson:"key"`  //密钥编码
 	Index uint32 `bson:"idx"`  //自增索引
 }
 

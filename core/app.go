@@ -153,10 +153,10 @@ func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error
 }
 
 //单独使用redis
-func (app *App) UseRedis(fn func(conn *redis.Conn) error) error {
+func (app *App) UseRedis(fn func(redv IRedisImp) error) error {
 	conn := rediscli.Conn()
 	defer conn.Close()
-	return fn(conn)
+	return fn(NewRedisImp(conn))
 }
 
 //使用默认超时

@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"time"
 
 	"github.com/cxuhua/xginx"
 
@@ -18,6 +17,7 @@ import (
 
 type IDbImp interface {
 	IAppDbImp
+	IRedisImp
 	//设置用户token
 	SetUserToken(uid primitive.ObjectID, tk string) error
 	//添加一个用户信息
@@ -62,27 +62,12 @@ type IDbImp interface {
 	ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	//自增密钥索引
 	IncDeterIdx(name string, id interface{}) error
-	//保存用户id
-	SetUserId(k string, id string, time time.Duration) error
-	//获取用户id
-	GetUserId(k string) (string, error)
 }
 
 type dbimp struct {
 	mongo.SessionContext
-	redv *redis.Conn
+	IRedisImp
 	isTx bool
-}
-
-//获取token
-func (db *dbimp) GetUserId(k string) (string, error) {
-	s := db.redv.Get(k)
-	return s.Result()
-}
-
-//保存用户id
-func (db *dbimp) SetUserId(k string, id string, time time.Duration) error {
-	return db.redv.Set(k, id, time).Err()
 }
 
 func (db *dbimp) table(name string, opts ...*options.CollectionOptions) *mongo.Collection {
@@ -94,8 +79,7 @@ func (db *dbimp) UseTx(fn func(db IDbImp) error) error {
 		return errors.New("tx core can't invoke Transaction")
 	}
 	_, err := db.WithTransaction(db, func(sdb mongo.SessionContext) (i interface{}, err error) {
-		imp := NewDbImp(sdb, db.redv, true)
-		return nil, fn(imp)
+		return nil, fn(NewDbImp(sdb, db.GetReids(), true))
 	})
 	return err
 }
@@ -107,7 +91,7 @@ func (db *dbimp) IsTx() bool {
 func NewDbImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,
-		redv:           redv,
+		IRedisImp:      NewRedisImp(redv),
 		isTx:           tx,
 	}
 }

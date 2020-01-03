@@ -32,12 +32,7 @@ func registerApi(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(102, "code error"))
 		return
 	}
-	type result struct {
-		Code int `json:"meta"`
-	}
-	rv := result{
-		Code: 0,
-	}
+	rv := Model{}
 	app := core.GetApp(c)
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfoWithMobile(args.Mobile)
@@ -70,12 +65,10 @@ func loginApi(c *gin.Context) {
 		return
 	}
 	type result struct {
-		Code  int    `json:"code"`
+		Model
 		Token string `json:"token"`
 	}
-	rv := result{
-		Code: 0,
-	}
+	rv := result{}
 	app := core.GetApp(c)
 	err := app.UseDb(func(db core.IDbImp) error {
 		user, err := db.GetUserInfoWithMobile(args.Mobile)
@@ -98,6 +91,7 @@ func loginApi(c *gin.Context) {
 			rv.Code = 105
 			return err
 		}
+		//返回加密的token
 		rv.Token = app.EncryptToken(tk)
 		return nil
 	})
@@ -122,10 +116,10 @@ func listCoinsApi(c *gin.Context) {
 		Height  uint32        `json:"height"`  //所在区块高度
 	}
 	type result struct {
-		Code  int    `json:"code"`
+		Model
 		Items []item `json:"items"`
 	}
-	res := result{Code: 0}
+	res := result{}
 	bi := xginx.GetBlockIndex()
 	spent := bi.NextHeight()
 	err := app.UseDb(func(sdb core.IDbImp) error {
@@ -164,12 +158,12 @@ func userInfoApi(c *gin.Context) {
 	app := core.GetApp(c)
 	user := GetAppUserInfo(c)
 	type result struct {
-		Code   int          `json:"code"`
+		Model
 		Mobile string       `json:"mobile"`
 		Coins  xginx.Amount `json:"coins"` //可用余额
 		Locks  xginx.Amount `json:"locks"` //锁定的
 	}
-	res := result{Code: 0}
+	res := result{}
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
