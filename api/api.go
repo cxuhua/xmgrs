@@ -42,12 +42,12 @@ func InitEngine(ctx context.Context) *gin.Engine {
 }
 
 const (
-	AppUserKey = "AppUserKey"
+	AppUserIdKey = "AppUserIdKey"
 )
 
 //获取用户id
-func GetAppUserInfo(c *gin.Context) *core.TUser {
-	return c.MustGet(AppUserKey).(*core.TUser)
+func GetAppUserId(c *gin.Context) primitive.ObjectID {
+	return c.MustGet(AppUserIdKey).(primitive.ObjectID)
 }
 
 func IsLogin(c *gin.Context) {
@@ -64,9 +64,8 @@ func IsLogin(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
-	//查询用户信息
-	err = app.UseDb(func(db core.IDbImp) error {
-		uid, err := db.GetUserId(tk)
+	err = app.UseRedis(func(redv core.IRedisImp) error {
+		uid, err := redv.GetUserId(tk)
 		if err != nil {
 			return err
 		}
@@ -74,11 +73,7 @@ func IsLogin(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		user, err := db.GetUserInfo(oid)
-		if err != nil {
-			return err
-		}
-		c.Set(AppUserKey, user)
+		c.Set(AppUserIdKey, oid)
 		return nil
 	})
 	if err != nil {

@@ -23,14 +23,14 @@ func signTxApi(c *gin.Context) {
 		return
 	}
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	id := xginx.NewHASH256(args.Id)
 	err := app.UseTx(func(db core.IDbImp) error {
 		_, err := db.GetTx(id.Bytes())
 		if err != nil {
 			return err
 		}
-		sigs, err := db.ListUserSigs(user.Id, id)
+		sigs, err := db.ListUserSigs(uid, id)
 		if err != nil {
 			return err
 		}
@@ -103,10 +103,10 @@ func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 //获取待签名交易
 func ListUserSignTxsApi(c *gin.Context) {
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	var ttxs []*core.TTx = nil
 	err := app.UseDb(func(db core.IDbImp) error {
-		txs, err := db.ListUserTxs(user.Id, true)
+		txs, err := db.ListUserTxs(uid, true)
 		if err != nil {
 			return err
 		}
@@ -153,10 +153,10 @@ func listUserAccountsApi(c *gin.Context) {
 		Items: []item{},
 	}
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	var accs []*core.TAccount = nil
 	err := app.UseDb(func(db core.IDbImp) error {
-		acc, err := db.ListAccounts(user.Id)
+		acc, err := db.ListAccounts(uid)
 		if err != nil {
 			return err
 		}
@@ -277,7 +277,7 @@ func loginApi(c *gin.Context) {
 //获取可用的金额列表
 func listCoinsApi(c *gin.Context) {
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	type item struct {
 		Id      xginx.Address `json:"id"`      //所属账号地址
 		Matured bool          `json:"matured"` //是否成熟
@@ -297,6 +297,10 @@ func listCoinsApi(c *gin.Context) {
 	spent := bi.NextHeight()
 	res.Height = bi.Height()
 	err := app.UseDb(func(sdb core.IDbImp) error {
+		user, err := sdb.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)
@@ -330,7 +334,7 @@ func listCoinsApi(c *gin.Context) {
 
 func userInfoApi(c *gin.Context) {
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	type result struct {
 		Model
 		Mobile string       `json:"mobile"`
@@ -339,6 +343,10 @@ func userInfoApi(c *gin.Context) {
 	}
 	res := result{}
 	err := app.UseDb(func(sdb core.IDbImp) error {
+		user, err := sdb.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)

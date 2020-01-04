@@ -144,9 +144,9 @@ func createAccountApi(c *gin.Context) {
 	res.Item.Tags = []string{}
 	res.Item.Pks = []string{}
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	err := app.UseTx(func(db core.IDbImp) error {
-		acc, err := core.NewAccount(db, user.Id, args.Num, args.Less, args.Arb, args.Id)
+		acc, err := core.NewAccount(db, uid, args.Num, args.Less, args.Arb, args.Id)
 		if err != nil {
 			return err
 		}
@@ -186,7 +186,7 @@ func createUserPrivateApi(c *gin.Context) {
 		return
 	}
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	type item struct {
 		Id     string `json:"id"`
 		Desc   string `json:"desc"`
@@ -199,6 +199,10 @@ func createUserPrivateApi(c *gin.Context) {
 	}
 	m := result{}
 	err := app.UseTx(func(db core.IDbImp) error {
+		user, err := db.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
 		pri, err := user.NewPrivate(db, args.Desc)
 		if err != nil {
 			return err
@@ -219,7 +223,7 @@ func createUserPrivateApi(c *gin.Context) {
 //获取用户的私钥
 func listPrivatesApi(c *gin.Context) {
 	app := core.GetApp(c)
-	user := GetAppUserInfo(c)
+	uid := GetAppUserId(c)
 	type item struct {
 		Id     string `json:"id"`
 		Desc   string `json:"desc"`
@@ -235,7 +239,7 @@ func listPrivatesApi(c *gin.Context) {
 		Items: []item{},
 	}
 	err := app.UseDb(func(db core.IDbImp) error {
-		pris, err := db.ListPrivates(user.Id)
+		pris, err := db.ListPrivates(uid)
 		if err != nil {
 			return err
 		}
