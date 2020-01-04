@@ -20,3 +20,11 @@ func TestAes(t *testing.T) {
 		t.Fatal("dec enc failed")
 	}
 }
+
+func TestRemoveRepeat(t *testing.T) {
+	vs := []string{"111", "222", "111"}
+	vs = RemoveRepeat(vs)
+	if len(vs) != 2 {
+		t.Fatal("error")
+	}
+}

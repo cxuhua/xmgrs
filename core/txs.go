@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -120,6 +121,15 @@ type TTxIn struct {
 	Sequence uint32       `bson:"seq"`
 }
 
+func NewTTxIn(in *xginx.TxIn) TTxIn {
+	vi := TTxIn{}
+	vi.OutHash = in.OutHash[:]
+	vi.OutIndex = in.OutIndex.ToUInt32()
+	vi.Script = in.Script
+	vi.Sequence = in.Sequence
+	return vi
+}
+
 func (in TTxIn) ToTxIn() *xginx.TxIn {
 	iv := &xginx.TxIn{}
 	iv.OutHash = xginx.NewHASH256(in.OutHash)
@@ -132,6 +142,13 @@ func (in TTxIn) ToTxIn() *xginx.TxIn {
 type TTxOut struct {
 	Value  int64        `bson:"value"`
 	Script xginx.Script `bson:"script"`
+}
+
+func NewTTXOut(out *xginx.TxOut) TTxOut {
+	vo := TTxOut{}
+	vo.Value = int64(out.Value)
+	vo.Script = out.Script
+	return vo
 }
 
 func (out TTxOut) ToTxOut() *xginx.TxOut {
@@ -185,6 +202,7 @@ type TTx struct {
 	Ins      []TTxIn            `bson:"ins"`
 	Outs     []TTxOut           `bson:"outs"`
 	LockTime uint32             `bson:"lt"`
+	Time     int64              `bson:"time"` //创建时间
 	Desc     string             `bson:"desc"`
 }
 
@@ -245,7 +263,6 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	if err != nil {
 		return err
 	}
-	//检测签名脚本并返回脚本
 	script, err := wits.ToScript()
 	if err != nil {
 		return err
@@ -258,8 +275,6 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 	tx := xginx.NewTx()
 	tx.Ver = xginx.VarUInt(stx.Ver)
-	tx.Ins = []*xginx.TxIn{}
-	tx.Outs = []*xginx.TxOut{}
 	for _, in := range stx.Ins {
 		tx.Ins = append(tx.Ins, in.ToTxIn())
 	}
@@ -276,6 +291,7 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 	if err != nil {
 		return nil, err
 	}
+	//检测交易id是否正确
 	if !bytes.Equal(tid[:], stx.Id) {
 		return nil, errors.New("tx ttx id error")
 	}
@@ -315,20 +331,13 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 	v.Ver = tx.Ver.ToUInt32()
 	v.LockTime = tx.LockTime
 	for _, in := range tx.Ins {
-		vi := TTxIn{}
-		vi.OutHash = in.OutHash[:]
-		vi.OutIndex = in.OutIndex.ToUInt32()
-		vi.Script = in.Script
-		vi.Sequence = in.Sequence
-		v.Ins = append(v.Ins, vi)
+		v.Ins = append(v.Ins, NewTTxIn(in))
 	}
 	for _, out := range tx.Outs {
-		vo := TTxOut{}
-		vo.Value = int64(out.Value)
-		vo.Script = out.Script
-		v.Outs = append(v.Outs, vo)
+		v.Outs = append(v.Outs, NewTTXOut(out))
 	}
 	v.UserId = uid
+	v.Time = time.Now().Unix()
 	return v
 }
 
@@ -379,7 +388,7 @@ func (ctx *dbimp) GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, e
 	return v, err
 }
 
-//获取需要uid签名的字段
+//获取需要签名的记录
 func (ctx *dbimp) ListUserSigs(uid primitive.ObjectID, tid xginx.HASH256) (TxSigs, error) {
 	col := ctx.table(TSigName)
 	iter, err := col.Find(ctx, bson.M{"uid": uid, "tid": tid, "sigb": false})

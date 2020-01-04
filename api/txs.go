@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"github.com/cxuhua/xmgrs/util"
+
 	"github.com/cxuhua/xmgrs/core"
 
 	"github.com/cxuhua/xginx"
@@ -26,9 +28,9 @@ type TxModel struct {
 	Ins      []TxInModel  `json:"ins"` //为空是coinbase交易
 	Outs     []TxOutModel `json:"outs"`
 	LockTime uint32       `json:"lt"`
-	Height   uint32       `json:"height"`  //所在区块高度
 	Confirm  uint32       `json:"confirm"` //确认数
 	BlkTime  uint32       `json:"time"`    //区块时间戳
+	Pool     bool         `json:"pool"`    //是否来自交易池
 }
 
 func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxModel {
@@ -37,9 +39,14 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 		Ins:      []TxInModel{},
 		Outs:     []TxOutModel{},
 		LockTime: tx.LockTime,
-		Height:   blk.Meta.Height,
-		Confirm:  bi.Height() - blk.Meta.Height + 1,
-		BlkTime:  blk.Meta.Time,
+		Pool:     tx.IsPool(),
+	}
+	if blk != nil {
+		m.Confirm = bi.Height() - blk.Meta.Height + 1
+		m.BlkTime = blk.Meta.Time
+	} else {
+		m.Confirm = 0
+		m.BlkTime = 0
 	}
 	for _, in := range tx.Ins {
 		if in.IsCoinBase() {
@@ -125,6 +132,10 @@ func createAccountApi(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
+	//去除重复的数据
+	args.Id = util.RemoveRepeat(args.Id)
+	args.Tags = util.RemoveRepeat(args.Tags)
+	//
 	type item struct {
 		Id   xginx.Address `json:"id"`   //账号地址id
 		Tags []string      `json:"tags"` //标签，分组用
@@ -158,15 +169,17 @@ func createAccountApi(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		res.Item.Id = acc.Id
-		res.Item.Tags = acc.Tags
-		res.Item.Num = acc.Num
-		res.Item.Less = acc.Less
-		res.Item.Arb = acc.Arb != xginx.InvalidArb
-		res.Item.Desc = acc.Desc
+		i := item{}
+		i.Id = acc.Id
+		i.Tags = acc.Tags
+		i.Num = acc.Num
+		i.Less = acc.Less
+		i.Arb = acc.Arb != xginx.InvalidArb
+		i.Desc = acc.Desc
 		for _, h := range acc.Pkh {
-			res.Item.Pks = append(res.Item.Pks, core.GetPrivateId(h))
+			i.Pks = append(res.Item.Pks, core.GetPrivateId(h))
 		}
+		res.Item = i
 		return nil
 	})
 	if err != nil {
@@ -207,10 +220,12 @@ func createUserPrivateApi(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		m.Item.Id = pri.Id
-		m.Item.Desc = pri.Desc
-		m.Item.Cipher = int(pri.Cipher)
-		m.Item.Time = pri.Time
+		i := item{}
+		i.Id = pri.Id
+		i.Desc = pri.Desc
+		i.Cipher = int(pri.Cipher)
+		i.Time = pri.Time
+		m.Item = i
 		return nil
 	})
 	if err != nil {
@@ -283,24 +298,35 @@ func listTxsApi(c *gin.Context) {
 	}{
 		Height: bi.Height(),
 	}
-	for _, txv := range txs {
-		txv, err := bi.LoadTxValue(txv.TxId)
-		if err != nil {
-			c.JSON(http.StatusOK, NewModel(102, err))
-			return
+	txp := bi.GetTxPool()
+	for _, v := range txs {
+		if v.IsPool() {
+			tx, err := txp.Get(v.TxId)
+			if err != nil {
+				c.JSON(http.StatusOK, NewModel(104, err))
+				return
+			}
+			item := NewTxModel(tx, nil, bi)
+			res.Items = append(res.Items, item)
+		} else {
+			txv, err := bi.LoadTxValue(v.TxId)
+			if err != nil {
+				c.JSON(http.StatusOK, NewModel(102, err))
+				return
+			}
+			blk, err := bi.LoadBlock(txv.BlkId)
+			if err != nil {
+				c.JSON(http.StatusOK, NewModel(103, err))
+				return
+			}
+			tx, err := blk.GetTx(txv.TxIdx.ToInt())
+			if err != nil {
+				c.JSON(http.StatusOK, NewModel(104, err))
+				return
+			}
+			item := NewTxModel(tx, blk, bi)
+			res.Items = append(res.Items, item)
 		}
-		blk, err := bi.LoadBlock(txv.BlkId)
-		if err != nil {
-			c.JSON(http.StatusOK, NewModel(103, err))
-			return
-		}
-		tx, err := blk.GetTx(txv.TxIdx.ToInt())
-		if err != nil {
-			c.JSON(http.StatusOK, NewModel(104, err))
-			return
-		}
-		item := NewTxModel(tx, blk, bi)
-		res.Items = append(res.Items, item)
 	}
 	c.JSON(http.StatusOK, res)
 }

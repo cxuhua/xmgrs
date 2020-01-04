@@ -51,6 +51,7 @@ func GetAppUserId(c *gin.Context) primitive.ObjectID {
 }
 
 func IsLogin(c *gin.Context) {
+	app := core.GetApp(c)
 	args := struct {
 		Token string `header:"X-Access-Token"`
 	}{}
@@ -58,7 +59,6 @@ func IsLogin(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
 		return
 	}
-	app := core.GetApp(c)
 	tk, err := app.DecryptToken(args.Token)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusOK, NewModel(1000, err))
@@ -85,13 +85,15 @@ func IsLogin(c *gin.Context) {
 
 func ApiEntry(g *gin.RouterGroup) {
 	g.POST("/login", loginApi)
+
 	a := g.Group("/", IsLogin)
+
 	a.GET("/user/info", userInfoApi)
 	a.GET("/user/coins", listCoinsApi)
 	a.GET("/tx/info/:id", getTxInfoApi)
 	a.GET("/list/txs/:addr", listTxsApi)
 	a.GET("/list/accounts", listUserAccountsApi)
-	a.GET("/list/sign/txs", ListUserSignTxsApi)
+	a.GET("/list/sign/txs", listUserSignTxsApi)
 	a.POST("/sign/tx", signTxApi)
 	a.GET("/list/privates", listPrivatesApi)
 	a.POST("/new/private", createUserPrivateApi)

@@ -16,7 +16,7 @@ import (
 //签名一个交易
 func signTxApi(c *gin.Context) {
 	args := struct {
-		Id string `form:"id"`
+		Id string `form:"id"` //交易id hex格式
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -36,7 +36,7 @@ func signTxApi(c *gin.Context) {
 		}
 		for _, sig := range sigs {
 			if sig.IsSign {
-				panic(errors.New("sig is signed"))
+				continue
 			}
 			err := sig.Sign(db)
 			if err != nil {
@@ -58,6 +58,7 @@ type TTxModel struct {
 	Ins      []TxInModel  `json:"ins"`
 	Outs     []TxOutModel `json:"outs"`
 	LockTime uint32       `json:"lt"`
+	Time     int64        `json:"time"`
 	Desc     string       `json:"desc"`
 }
 
@@ -68,6 +69,7 @@ func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 		Ins:      []TxInModel{},
 		Outs:     []TxOutModel{},
 		LockTime: ttx.LockTime,
+		Time:     ttx.Time,
 		Desc:     ttx.Desc,
 	}
 	for _, in := range ttx.Ins {
@@ -101,16 +103,24 @@ func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 }
 
 //获取待签名交易
-func ListUserSignTxsApi(c *gin.Context) {
+func listUserSignTxsApi(c *gin.Context) {
 	app := core.GetApp(c)
+	bi := xginx.GetBlockIndex()
 	uid := GetAppUserId(c)
-	var ttxs []*core.TTx = nil
+	ttxs := []*core.TTx{}
 	err := app.UseDb(func(db core.IDbImp) error {
-		txs, err := db.ListUserTxs(uid, true)
+		txs, err := db.ListUserTxs(uid, false)
 		if err != nil {
 			return err
 		}
-		ttxs = txs
+		for _, ttx := range txs {
+			//如果已经签名成功忽略
+			_, err := ttx.ToTx(db, bi)
+			if err == nil {
+				continue
+			}
+			ttxs = append(ttxs, ttx)
+		}
 		return nil
 	})
 	if err != nil {
@@ -125,7 +135,6 @@ func ListUserSignTxsApi(c *gin.Context) {
 		Code:  0,
 		Items: []TTxModel{},
 	}
-	bi := xginx.GetBlockIndex()
 	for _, ttx := range ttxs {
 		res.Items = append(res.Items, NewTTxModel(ttx, bi))
 	}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cxuhua/xmgrs/util"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -59,6 +61,7 @@ func NewAccountFrom(uid primitive.ObjectID, acc *xginx.Account) (*TAccount, erro
 
 //利用多个公钥id创建账号
 func NewAccount(db IDbImp, uid primitive.ObjectID, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
+	ids = util.RemoveRepeat(ids)
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
@@ -97,7 +100,7 @@ func (a TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 		return nil, errors.New("idx out bound")
 	}
 	id := GetPrivateId(a.Pkh[idx])
-	return db.GetPrivate(id[:])
+	return db.GetPrivate(id)
 }
 
 func (a *TAccount) ToAccount() *xginx.Account {
