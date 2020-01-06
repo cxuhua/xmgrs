@@ -61,6 +61,7 @@ func (st *ApiTestSuite) ListUserAccounts() {
 	st.Require().Equal(code, 0, any.Get("error"))
 }
 
+//检测A的金额
 func (st *ApiTestSuite) GetUserCoins() {
 	any, err := st.Get("/v1/user/coins")
 	st.Require().NoError(err)
