@@ -12,6 +12,8 @@ func (st *ApiTestSuite) TestAll() {
 	st.ListUserAccounts()
 
 	st.GetUserCoins()
+
+	st.NewTx()
 }
 
 func (st *ApiTestSuite) GetUserInfo() {
@@ -31,6 +33,7 @@ func (st *ApiTestSuite) GetUserInfo() {
 	any, err = st.Post("/v1/new/private", v)
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
+	st.Require().Equal(any.Get("code").ToInt(), 0, any.Get("error").ToString())
 	//使用指定私钥创建账号
 	v = url.Values{}
 	v.Set("num", "1")
@@ -41,6 +44,7 @@ func (st *ApiTestSuite) GetUserInfo() {
 	any, err = st.Post("/v1/new/account", v)
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
+	st.Require().Equal(any.Get("code").ToInt(), 0, any.Get("error").ToString())
 	//获取私钥列表
 	any, err = st.Get("/v1/list/privates")
 	st.Require().NoError(err)

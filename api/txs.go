@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/cxuhua/xmgrs/util"
@@ -116,6 +117,99 @@ func getTxInfoApi(c *gin.Context) {
 		Item:   NewTxModel(tx, blk, bi),
 	}
 	c.JSON(http.StatusOK, res)
+}
+
+//发布交易
+func submitTxApi(c *gin.Context) {
+	args := struct {
+		Id string `form:"id"` //交易id
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	id := xginx.NewHASH256(args.Id).Bytes()
+	app := core.GetApp(c)
+	uid := GetAppUserId(c)
+	bi := xginx.GetBlockIndex()
+	var tx *xginx.TX = nil
+	err := app.UseDb(func(db core.IDbImp) error {
+		ttx, err := db.GetTx(id)
+		if err != nil {
+			return err
+		}
+		if !core.ObjectIDEqual(ttx.UserId, uid) {
+			return errors.New("not mine ttx")
+		}
+		tx, err = ttx.ToTx(db, bi)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	txp := bi.GetTxPool()
+	err = txp.PushTx(bi, tx)
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(201, err))
+		return
+	}
+	c.JSON(http.StatusOK, NewModel(0, "OK"))
+}
+
+//创建交易
+func createTxApi(c *gin.Context) {
+	args := struct {
+		Dst  []string     `form:"dst"`  //addr->amount 向addr转amount个
+		Fee  xginx.Amount `form:"fee"`  //交易费
+		Desc string       `form:"desc"` //描述
+		LT   uint32       `form:"lt"`   //locktime
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	if len(args.Dst) == 0 {
+		c.JSON(http.StatusOK, NewModel(101, "dst args miss"))
+		return
+	}
+	app := core.GetApp(c)
+	uid := GetAppUserId(c)
+	bi := xginx.GetBlockIndex()
+	var ttx *core.TTx = nil
+	err := app.UseTx(func(db core.IDbImp) error {
+		user, err := db.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
+		lis := core.NewSignListener(db, user)
+		mi := bi.NewTrans(lis)
+		for _, d := range args.Dst {
+			av, err := xginx.NewAddrValue(d)
+			if err != nil {
+				return err
+			}
+			mi.Add(av.Addr, av.Value)
+		}
+		mi.Fee = args.Fee
+		tx, err := mi.NewTx(args.LT)
+		if err != nil {
+			return err
+		}
+		ttx, err = user.SaveTx(db, tx, lis, args.Desc)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "item": NewTTxModel(ttx, bi)})
 }
 
 //创建账号

@@ -65,11 +65,7 @@ func IsLogin(c *gin.Context) {
 		return
 	}
 	err = app.UseRedis(func(redv core.IRedisImp) error {
-		uid, err := redv.GetUserId(tk)
-		if err != nil {
-			return err
-		}
-		oid, err := primitive.ObjectIDFromHex(uid)
+		oid, err := redv.GetUserId(tk)
 		if err != nil {
 			return err
 		}
@@ -85,8 +81,8 @@ func IsLogin(c *gin.Context) {
 
 func ApiEntry(g *gin.RouterGroup) {
 	g.POST("/login", loginApi)
-
 	a := g.Group("/", IsLogin)
+	a.GET("/quit/login", quitLoginApi)
 
 	a.GET("/user/info", userInfoApi)
 	a.GET("/user/coins", listCoinsApi)
@@ -98,4 +94,6 @@ func ApiEntry(g *gin.RouterGroup) {
 	a.GET("/list/privates", listPrivatesApi)
 	a.POST("/new/private", createUserPrivateApi)
 	a.POST("/new/account", createAccountApi)
+	a.POST("/new/tx", createTxApi)
+	a.POST("/submit/tx", submitTxApi)
 }

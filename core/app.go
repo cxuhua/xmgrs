@@ -98,8 +98,7 @@ type App struct {
 
 //生成一个token
 func (app *App) GenToken() string {
-	id := primitive.NewObjectID()
-	return id.Hex()
+	return primitive.NewObjectID().Hex()
 }
 
 //加密token
@@ -122,7 +121,7 @@ func (app *App) DecryptToken(cks string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(tk) != 28 {
+	if len(tk) != len(primitive.NilObjectID)*2+4 {
 		return "", errors.New("token length error")
 	}
 	mk := tk[2 : len(tk)-2]

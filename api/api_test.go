@@ -49,6 +49,13 @@ func (st *ApiTestSuite) SetupSuite() {
 
 	app := core.InitApp(st.ctx)
 	err := app.UseTx(func(sdb core.IDbImp) error {
+		//先删除测试用户
+		if u, err := sdb.GetUserInfoWithMobile(st.A); err == nil {
+			sdb.DeleteUser(u.Id)
+		}
+		if u, err := sdb.GetUserInfoWithMobile(st.B); err == nil {
+			sdb.DeleteUser(u.Id)
+		}
 		//创建测试用户A
 		a := core.NewUser(st.A, []byte("xh0714"))
 		err := sdb.InsertUser(a)
@@ -81,8 +88,8 @@ func (st *ApiTestSuite) SetupSuite() {
 		return err
 	})
 	st.Require().NoError(err)
-	//
-	err = st.Login()
+	//登陆a账户
+	err = st.LoginA()
 	st.Require().NoError(err)
 }
 
@@ -126,8 +133,34 @@ func (st *ApiTestSuite) Get(uri string) (jsoniter.Any, error) {
 	return jsoniter.Get(body), nil
 }
 
-//登陆
-func (st *ApiTestSuite) Login() error {
+//登陆A
+func (st *ApiTestSuite) LoginB() error {
+	if st.token != "" {
+		st.Get("/v1/quit/login")
+		st.token = ""
+	}
+	v := url.Values{}
+	v.Set("mobile", st.B)
+	v.Set("pass", "xh0714")
+
+	any, err := st.Post("/v1/login", v)
+	if err != nil {
+		return err
+	}
+	if any.Get("code").ToInt() != 0 {
+		return fmt.Errorf("meta error = %v", any.Get("error"))
+	}
+	st.token = any.Get("token").ToString()
+	xginx.LogInfo("login B account Success token=", st.token)
+	return nil
+}
+
+//登陆A
+func (st *ApiTestSuite) LoginA() error {
+	if st.token != "" {
+		st.Get("/v1/quit/login")
+		st.token = ""
+	}
 	v := url.Values{}
 	v.Set("mobile", st.A)
 	v.Set("pass", "xh0714")
@@ -140,6 +173,7 @@ func (st *ApiTestSuite) Login() error {
 		return fmt.Errorf("meta error = %v", any.Get("error"))
 	}
 	st.token = any.Get("token").ToString()
+	xginx.LogInfo("login A account Success token=", st.token)
 	return nil
 }
 
@@ -157,19 +191,11 @@ func (st *ApiTestSuite) TearDownTest() {
 
 func (st *ApiTestSuite) TearDownSuite() {
 	xginx.CloseTestBlock(st.bi)
-	app := core.InitApp(st.ctx)
-	err := app.UseTx(func(sdb core.IDbImp) error {
-		err := sdb.DeleteUser(st.au.Id)
-		if err != nil {
-			return err
-		}
-		err = sdb.DeleteUser(st.bu.Id)
-		if err != nil {
-			return err
-		}
-		return err
-	})
+
+	any, err := st.Get("/v1/quit/login")
 	st.Require().NoError(err)
+	st.Require().NotNil(any)
+	st.Require().Equal(any.Get("code").ToInt(), 0, any.Get("error").ToString())
 }
 
 func TestApi(t *testing.T) {

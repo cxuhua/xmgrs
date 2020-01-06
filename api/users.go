@@ -13,6 +13,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func quitLoginApi(c *gin.Context) {
+	app := core.GetApp(c)
+	uid := GetAppUserId(c)
+	app.UseDb(func(db core.IDbImp) error {
+		user, err := db.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
+		return db.DelUserId(user.Token)
+	})
+	c.JSON(http.StatusOK, NewModel(0, "OK"))
+}
+
 //签名一个交易
 func signTxApi(c *gin.Context) {
 	args := struct {
@@ -267,7 +280,7 @@ func loginApi(c *gin.Context) {
 			rv.Code = 104
 			return err
 		}
-		err = db.SetUserId(tk, user.Id.Hex(), time.Hour*24*7)
+		err = db.SetUserId(tk, user.Id, time.Hour*24*7)
 		if err != nil {
 			rv.Code = 105
 			return err

@@ -102,6 +102,7 @@ func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
 	if err != nil {
 		return err
 	}
+	//分析账户用到的密钥，并保存记录等候签名
 	for _, pkh := range acc.Pkh {
 		kid := GetPrivateId(pkh)
 		pk, err := st.db.GetPrivate(kid)

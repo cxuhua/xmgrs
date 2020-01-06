@@ -132,6 +132,18 @@ func (ctx *dbimp) DeleteUser(id interface{}) error {
 	if err != nil {
 		return err
 	}
+	//删除需要用户签名的数据
+	col = ctx.table(TSigName)
+	_, err = col.DeleteMany(ctx, bson.M{"uid": uid})
+	if err != nil {
+		return err
+	}
+	//删除用户交易
+	col = ctx.table(TTxName)
+	_, err = col.DeleteMany(ctx, bson.M{"uid": uid})
+	if err != nil {
+		return err
+	}
 	//删除用户信息
 	col = ctx.table(TUsersName)
 	_, err = col.DeleteOne(ctx, bson.M{"_id": uid})
