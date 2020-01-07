@@ -79,21 +79,20 @@ func IsLogin(c *gin.Context) {
 	c.Next()
 }
 
-func ApiEntry(g *gin.RouterGroup) {
-	g.POST("/login", loginApi)
-	a := g.Group("/", IsLogin)
-	a.GET("/quit/login", quitLoginApi)
-
-	a.GET("/user/info", userInfoApi)
-	a.GET("/user/coins", listCoinsApi)
-	a.GET("/tx/info/:id", getTxInfoApi)
-	a.GET("/list/txs/:addr", listTxsApi)
-	a.GET("/list/accounts", listUserAccountsApi)
-	a.GET("/list/sign/txs", listUserSignTxsApi)
-	a.POST("/sign/tx", signTxApi)
-	a.GET("/list/privates", listPrivatesApi)
-	a.POST("/new/private", createUserPrivateApi)
-	a.POST("/new/account", createAccountApi)
-	a.POST("/new/tx", createTxApi)
-	a.POST("/submit/tx", submitTxApi)
+func ApiEntry(rg *gin.RouterGroup) {
+	rg.POST("/login", loginApi)
+	auth := rg.Group("/", IsLogin)
+	auth.GET("/quit/login", quitLoginApi)
+	auth.GET("/user/info", userInfoApi)
+	auth.GET("/user/coins", listCoinsApi)
+	auth.GET("/tx/info/:id", getTxInfoApi)
+	auth.GET("/list/txs/:addr", listTxsApi)
+	auth.GET("/list/accounts", listUserAccountsApi)
+	auth.GET("/list/sign/txs", listUserSignTxsApi)
+	auth.POST("/sign/tx", signTxApi)
+	auth.GET("/list/privates", listPrivatesApi)
+	auth.POST("/new/private", createUserPrivateApi)
+	auth.POST("/new/account", createAccountApi)
+	auth.POST("/new/tx", createTxApi)
+	auth.POST("/submit/tx", submitTxApi)
 }

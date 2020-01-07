@@ -314,10 +314,12 @@ func listCoinsApi(c *gin.Context) {
 		Height uint32 `json:"height"` //当前区块高度
 		Items  []item `json:"items"`
 	}
-	res := result{}
 	bi := xginx.GetBlockIndex()
+	res := result{
+		Items:  []item{},
+		Height: bi.Height(),
+	}
 	spent := bi.NextHeight()
-	res.Height = bi.Height()
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)
 		if err != nil {

@@ -391,6 +391,7 @@ func listTxsApi(c *gin.Context) {
 		Items  []TxModel `json:"items"`
 	}{
 		Height: bi.Height(),
+		Items:  []TxModel{},
 	}
 	txp := bi.GetTxPool()
 	for _, v := range txs {

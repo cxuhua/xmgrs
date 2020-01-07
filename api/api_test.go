@@ -63,14 +63,14 @@ func (st *ApiTestSuite) SetupSuite() {
 			return err
 		}
 		st.au = a
-		//创建测试账号
+		//创建测试账号A
 		aa, err := a.SaveAccount(sdb, 1, 1, false)
 		if err != nil {
 			return err
 		}
 		st.aa = aa
 		xginx.LogInfo("Test Account = ", aa.GetAddress())
-		//生成101个区块
+		//生成101个测试区块
 		st.bi = xginx.NewTestBlockIndex(101, aa.GetAddress())
 		//创建测试用户B
 		b := core.NewUser(st.B, []byte("xh0714"))
@@ -79,7 +79,7 @@ func (st *ApiTestSuite) SetupSuite() {
 			return err
 		}
 		st.bu = b
-		//创建测试账号
+		//创建测试账号B
 		ab, err := b.SaveAccount(sdb, 1, 1, false)
 		if err != nil {
 			return err

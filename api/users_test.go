@@ -71,8 +71,9 @@ func (st *ApiTestSuite) GetUserCoins() {
 	//获取用户的金额列表
 	st.Assert().Equal(101, any.Get("items").Size(), "txs count error")
 
-	txid := any.Get("items").Get(0).Get("tx").ToString()
-	addr := any.Get("items").Get(0).Get("id").ToString()
+	//获取第一个交易id和地址
+	txid := any.Get("items", 0, "tx").ToString()
+	addr := any.Get("items", 0, "id").ToString()
 
 	any, err = st.Get("/v1/tx/info/" + txid)
 	st.Require().NoError(err)
