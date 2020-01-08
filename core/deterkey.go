@@ -53,7 +53,7 @@ func (k DeterKey) Dump() string {
 }
 
 func (k DeterKey) String() string {
-	return fmt.Sprintf("Root=%s,Key=%s", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key))
+	return fmt.Sprintf("Root=%s,Key=%s,Idx=%d", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key), k.Index)
 }
 
 //派生一个密钥
