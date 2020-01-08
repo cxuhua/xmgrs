@@ -43,13 +43,7 @@ func (st *DbSignListener) GetSigs() []*TSigs {
 
 //保存
 func (st *DbSignListener) SaveSigs() error {
-	for _, sig := range st.sigs {
-		err := st.db.InsertSigs(sig)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return st.db.InsertSigs(st.sigs...)
 }
 
 //获取金额对应的账户
@@ -97,7 +91,11 @@ func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
 	if err != nil {
 		return err
 	}
-	tid := singer.GetTxId()
+	tx, _, _, idx := singer.GetObjs()
+	tid, err := tx.ID()
+	if err != nil {
+		return err
+	}
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
@@ -109,7 +107,7 @@ func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
 		if err != nil {
 			return err
 		}
-		sigs := NewSigs(tid, pk.UserId, pk.Id, hash)
+		sigs := NewSigs(tid, pk.UserId, pk.Id, hash, idx)
 		st.sigs = append(st.sigs, sigs)
 	}
 	return nil
@@ -166,6 +164,7 @@ type TSigs struct {
 	TxId   xginx.HASH256      `bson:"tid"`  //交易id
 	KeyId  string             `bson:"kid"`  //私钥id
 	Hash   []byte             `bson:"hash"` //签名hash
+	Idx    int                `bson:"idx"`  //输入索引
 	IsSign bool               `bson:"sigb"` //是否签名
 	Sigs   xginx.SigBytes     `bson:"sigs"` //签名结果
 }
@@ -208,13 +207,14 @@ type TTx struct {
 }
 
 //创建待签名对象
-func NewSigs(tid xginx.HASH256, uid primitive.ObjectID, kid string, hash []byte) *TSigs {
+func NewSigs(tid xginx.HASH256, uid primitive.ObjectID, kid string, hash []byte, idx int) *TSigs {
 	sigs := &TSigs{}
 	sigs.Id = primitive.NewObjectID()
 	sigs.UserId = uid
 	sigs.TxId = tid
 	sigs.KeyId = kid
 	sigs.Hash = hash
+	sigs.Idx = idx
 	sigs.IsSign = false
 	return sigs
 }
@@ -226,8 +226,8 @@ type setsigner struct {
 
 //查询签名数据并设置脚本
 func (st *setsigner) SignTx(singer xginx.ISigner) error {
-	tx, in, out := singer.GetObjs()
-	tid, err := tx.ID()
+	tx, in, out, iidx := singer.GetObjs()
+	txid, err := tx.ID()
 	if err != nil {
 		return err
 	}
@@ -247,15 +247,15 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	}
 	//获取每个密钥的签名
 	for idx, pkh := range acc.Pkh {
-		kid := GetPrivateId(pkh)
+		keyid := GetPrivateId(pkh)
 		//获取需要签名的记录
-		sigs, err := st.db.GetSigs(tid, kid, hash)
+		sigs, err := st.db.GetSigs(txid, keyid, hash, iidx)
 		if err != nil {
 			continue
 		}
 		//如果还未签名
 		if !sigs.IsSign {
-			return fmt.Errorf("kid %s not sign at %d", kid, idx)
+			return fmt.Errorf("kid %s not sign at %d", keyid, idx)
 		}
 		wits.Sig = append(wits.Sig, sigs.Sigs)
 	}
@@ -381,9 +381,9 @@ func (ctx *dbimp) SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error {
 }
 
 //获取签名对象
-func (ctx *dbimp) GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, error) {
+func (ctx *dbimp) GetSigs(tid xginx.HASH256, kid string, hash []byte, idx int) (*TSigs, error) {
 	col := ctx.table(TSigName)
-	res := col.FindOne(ctx, bson.M{"tid": tid, "kid": kid, "hash": hash})
+	res := col.FindOne(ctx, bson.M{"tid": tid, "kid": kid, "hash": hash, "idx": idx})
 	v := &TSigs{}
 	err := res.Decode(v)
 	return v, err
@@ -430,9 +430,13 @@ func (ctx *dbimp) ListSigs(tid xginx.HASH256) (TxSigs, error) {
 }
 
 //添加一个私钥
-func (ctx *dbimp) InsertSigs(sigs *TSigs) error {
+func (ctx *dbimp) InsertSigs(sigs ...*TSigs) error {
 	col := ctx.table(TSigName)
-	_, err := col.InsertOne(ctx, sigs)
+	ds := []interface{}{}
+	for _, sig := range sigs {
+		ds = append(ds, sig)
+	}
+	_, err := col.InsertMany(ctx, ds)
 	return err
 }
 

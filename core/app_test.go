@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,9 +19,10 @@ import (
 
 func TestToken(t *testing.T) {
 	app := InitApp(context.Background())
+	tid := primitive.NewObjectID()
 	err := app.UseRedis(func(redv IRedisImp) error {
 		token := app.GenToken()
-		err := redv.SetUserId(token, "111", time.Second*1)
+		err := redv.SetUserId(token, tid, time.Second*1)
 		if err != nil {
 			panic(err)
 		}
@@ -36,7 +39,7 @@ func TestToken(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		if v1 != "111" {
+		if ObjectIDEqual(v1, tid) {
 			t.Error("value error")
 		}
 		time.Sleep(time.Second * 2)

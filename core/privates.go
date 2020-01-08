@@ -1,110 +1,13 @@
 package core
 
 import (
-	"bytes"
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha512"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
-	"fmt"
-	"hash"
-	"math/big"
 	"time"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
-//确定性私钥地址
-type DeterKey struct {
-	Root  []byte `bson:"root"` //私钥内容
-	Key   []byte `bson:"key"`  //密钥编码
-	Index uint32 `bson:"idx"`  //自增索引
-}
-
-//加载key
-func LoadDeterKey(s string) (*DeterKey, error) {
-	data, err := xginx.B58Decode(s, xginx.BitcoinAlphabet)
-	if err != nil {
-		return nil, err
-	}
-	if len(data) != 68 {
-		return nil, errors.New("data length error")
-	}
-	dl := len(data)
-	hbytes := xginx.Hash256(data[:dl-4])
-	if !bytes.Equal(hbytes[:4], data[dl-4:]) {
-		return nil, errors.New("checksum error")
-	}
-	dk := &DeterKey{
-		Root: data[:32],
-		Key:  data[32 : dl-4],
-	}
-	return dk, nil
-}
-
-func (k DeterKey) GetPks() xginx.PKBytes {
-	return k.GetPrivateKey().PublicKey().GetPks()
-}
-
-func (k DeterKey) GetPrivateKey() *xginx.PrivateKey {
-	pri := &xginx.PrivateKey{}
-	pri.D = new(big.Int).SetBytes(k.Root)
-	return pri
-}
-
-func (k DeterKey) Dump() string {
-	data := append([]byte{}, k.Root...)
-	data = append(data, k.Key...)
-	hbytes := xginx.Hash256(data)
-	data = append(data, hbytes[:4]...)
-	return xginx.B58Encode(data, xginx.BitcoinAlphabet)
-}
-
-func (k DeterKey) String() string {
-	return fmt.Sprintf("%s %s", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key))
-}
-
-//派生一个密钥
-func (k *DeterKey) New(idx uint32) *DeterKey {
-	h := hmac.New(func() hash.Hash {
-		return sha512.New()
-	}, k.Key)
-	_, err := h.Write(k.Root)
-	if err != nil {
-		panic(err)
-	}
-	err = binary.Write(h, binary.BigEndian, idx)
-	if err != nil {
-		panic(err)
-	}
-	b := h.Sum(nil)
-	if len(b) != 64 {
-		panic(errors.New("hmac sha512 sum error"))
-	}
-	return &DeterKey{
-		Root: b[:32],
-		Key:  b[32:],
-	}
-}
-
-func NewDeterKey() *DeterKey {
-	pri, err := xginx.NewPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-	k := &DeterKey{}
-	k.Root = pri.Bytes()
-	k.Key = make([]byte, 32)
-	_, err = rand.Read(k.Key)
-	if err != nil {
-		panic(err)
-	}
-	return k
-}
 
 const (
 	TPrivatesName = "privates"
@@ -114,8 +17,8 @@ type CipherType int
 
 const (
 	CipherTypeNone  CipherType = 0
-	CipherTypeAes   CipherType = 1
-	PrivateIDPrefix            = "kp"
+	CipherTypeAes   CipherType = 1    //aes加密方式
+	PrivateIDPrefix            = "kp" //私钥前缀
 )
 
 func GetPrivateId(pkh xginx.HASH160) string {

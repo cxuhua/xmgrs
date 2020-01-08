@@ -2,7 +2,9 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/cxuhua/xmgrs/util"
 
@@ -12,6 +14,33 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+type AddrValue struct {
+	Addr  xginx.Address
+	Value xginx.Amount
+}
+
+func (av AddrValue) String() string {
+	return fmt.Sprintf("%s->%d", av.Addr, av.Value)
+}
+
+func NewAddrValue(s string) (AddrValue, error) {
+	av := AddrValue{}
+	v := strings.Split(s, "->")
+	if len(v) != 2 {
+		return av, errors.New("dst format error")
+	}
+	amt, err := xginx.ParseIntMoney(v[1])
+	if err != nil {
+		return av, err
+	}
+	if !amt.IsRange() {
+		return av, errors.New("amount range error")
+	}
+	av.Addr = xginx.Address(v[0])
+	av.Value = amt
+	return av, nil
+}
 
 type TxInModel struct {
 	Addr     xginx.Address `json:"addr"`  //coinbase地址是空的
@@ -187,8 +216,8 @@ func createTxApi(c *gin.Context) {
 		}
 		lis := core.NewSignListener(db, user)
 		mi := bi.NewTrans(lis)
-		for _, d := range args.Dst {
-			av, err := xginx.NewAddrValue(d)
+		for _, dst := range args.Dst {
+			av, err := NewAddrValue(dst)
 			if err != nil {
 				return err
 			}
@@ -209,7 +238,14 @@ func createTxApi(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(200, err))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "item": NewTTxModel(ttx, bi)})
+	res := struct {
+		Code int      `json:"code"`
+		Item TTxModel `json:"item"`
+	}{
+		Code: 0,
+		Item: NewTTxModel(ttx, bi),
+	}
+	c.JSON(http.StatusOK, res)
 }
 
 //创建账号
@@ -249,9 +285,8 @@ func createAccountApi(c *gin.Context) {
 	res.Item.Tags = []string{}
 	res.Item.Pks = []string{}
 	app := core.GetApp(c)
-	uid := GetAppUserId(c)
 	err := app.UseTx(func(db core.IDbImp) error {
-		acc, err := core.NewAccount(db, uid, args.Num, args.Less, args.Arb, args.Id)
+		acc, err := core.NewAccount(db, args.Num, args.Less, args.Arb, args.Id)
 		if err != nil {
 			return err
 		}

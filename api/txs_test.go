@@ -11,7 +11,7 @@ func (st *ApiTestSuite) NewTx() {
 	//创建一个交易
 	v := url.Values{}
 	//向B转账1个积分
-	v.Add("dst", xginx.AddrValue{Addr: st.ab.GetAddress(), Value: 1 * xginx.COIN}.String())
+	v.Add("dst", AddrValue{Addr: st.ab.GetAddress(), Value: 1 * xginx.COIN}.String())
 	v.Set("fee", "10")
 	v.Set("desc", "this is desc")
 	v.Set("lt", "0")

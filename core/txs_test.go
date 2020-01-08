@@ -20,6 +20,11 @@ type TxsTestSuite struct {
 
 func (st *TxsTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
+	//删除测试账号
+	if uv, err := st.db.GetUserInfoWithMobile("17716858036"); err == nil {
+		st.db.DeleteUser(uv.Id)
+	}
+	//创建测试账号
 	user := NewUser("17716858036", []byte("xh0714"))
 	err := st.db.InsertUser(user)
 	st.Require().NoError(err)
@@ -34,7 +39,7 @@ func (st *TxsTestSuite) SetupTest() {
 	p2, err := st.user.NewPrivate(st.db, "第二个私钥")
 	st.Require().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(st.db, st.user.Id, 2, 2, false, []string{p1.Id, p2.Id})
+	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
 	st.Require().NoError(err)
 	err = st.db.InsertAccount(acc)
 	st.Require().NoError(err)

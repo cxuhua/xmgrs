@@ -31,7 +31,7 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAcc
 		}
 		ids = append(ids, pri.Id)
 	}
-	acc, err := NewAccount(db, user.Id, num, less, arb, ids)
+	acc, err := NewAccount(db, num, less, arb, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -43,12 +43,12 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAcc
 }
 
 //创建账号从区块账号
-func NewAccountFrom(uid primitive.ObjectID, acc *xginx.Account) (*TAccount, error) {
+func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account) (*TAccount, error) {
 	id, err := acc.GetAddress()
 	if err != nil {
 		return nil, err
 	}
-	a := &TAccount{Id: id, UserId: uid}
+	a := &TAccount{Id: id, UserId: uids}
 	a.Num = acc.Num
 	a.Less = acc.Less
 	a.Arb = acc.Arb
@@ -60,38 +60,47 @@ func NewAccountFrom(uid primitive.ObjectID, acc *xginx.Account) (*TAccount, erro
 }
 
 //利用多个公钥id创建账号
-func NewAccount(db IDbImp, uid primitive.ObjectID, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
+func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
+	if num == 0 {
+		return nil, errors.New("num error")
+	}
 	ids = util.RemoveRepeat(ids)
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
+	uidm := map[primitive.ObjectID]bool{}
 	pks := []xginx.PKBytes{}
 	for idx, id := range ids {
 		pri, err := db.GetPrivate(id)
 		if err != nil {
 			return nil, fmt.Errorf("pkh idx = %d private key miss", idx)
 		}
+		uidm[pri.UserId] = true
 		pks = append(pks, pri.Pks)
 	}
 	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
 	if err != nil {
 		return nil, err
 	}
-	return NewAccountFrom(uid, acc)
+	uids := []primitive.ObjectID{}
+	for uid, _ := range uidm {
+		uids = append(uids, uid)
+	}
+	return NewAccountFrom(uids, acc)
 }
 
 //账户管理
 type TAccount struct {
-	Id     xginx.Address      `bson:"_id"`  //账号地址id
-	UserId primitive.ObjectID `bson:"uid"`  //谁创建的
-	Tags   []string           `bson:"tags"` //标签，分组用
-	Num    uint8              `bson:"num"`  //总的密钥数量
-	Less   uint8              `bson:"less"` //至少通过的签名数量
-	Arb    uint8              `bson:"arb"`  //是否仲裁
-	Pks    []xginx.PKBytes    `bson:"pks"`  //公钥
-	Pkh    []xginx.HASH160    `bson:"pkh"`  //相关的私钥
-	Time   int64              `json:"time"` //创建时间
-	Desc   string             `bson:"desc"` //描述
+	Id     xginx.Address        `bson:"_id"`  //账号地址id
+	UserId []primitive.ObjectID `bson:"uid"`  //所属的多个账户，当用多个私钥创建时，所属私钥的用户集合
+	Tags   []string             `bson:"tags"` //标签，分组用
+	Num    uint8                `bson:"num"`  //总的密钥数量
+	Less   uint8                `bson:"less"` //至少通过的签名数量
+	Arb    uint8                `bson:"arb"`  //是否仲裁
+	Pks    []xginx.PKBytes      `bson:"pks"`  //公钥
+	Pkh    []xginx.HASH160      `bson:"pkh"`  //相关的私钥
+	Time   int64                `bson:"time"` //创建时间
+	Desc   string               `bson:"desc"` //描述
 }
 
 //获取第几个私钥

@@ -18,7 +18,7 @@ import (
 type IDbImp interface {
 	IAppDbImp
 	IRedisImp
-	//设置用户token
+	//保存用户token
 	SetUserToken(uid primitive.ObjectID, tk string) error
 	//添加一个用户信息
 	InsertUser(obj *TUser) error
@@ -51,7 +51,7 @@ type IDbImp interface {
 	//插入交易信息
 	InsertTx(tx *TTx) error
 	//保存签名对象
-	InsertSigs(sigs *TSigs) error
+	InsertSigs(sigs ...*TSigs) error
 	//设置签名
 	SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error
 	//获取交易相关的签名对象
@@ -59,7 +59,7 @@ type IDbImp interface {
 	//获取需要用户签名的交易
 	ListUserSigs(uid primitive.ObjectID, tid xginx.HASH256) (TxSigs, error)
 	//获取签名对象
-	GetSigs(tid xginx.HASH256, kid string, hash []byte) (*TSigs, error)
+	GetSigs(tid xginx.HASH256, kid string, hash []byte, idx int) (*TSigs, error)
 	//获取用户需要签名的交易
 	ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	//自增密钥索引
