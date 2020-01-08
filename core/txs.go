@@ -101,8 +101,7 @@ func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
 		return err
 	}
 	//分析账户用到的密钥，并保存记录等候签名
-	for _, pkh := range acc.Pkh {
-		kid := GetPrivateId(pkh)
+	for _, kid := range acc.Kid {
 		pk, err := st.db.GetPrivate(kid)
 		if err != nil {
 			return err
@@ -171,6 +170,10 @@ type TSigs struct {
 
 //签名并保存
 func (sig *TSigs) Sign(db IDbImp) error {
+	//如果已经签名直接返回成功
+	if sig.IsSign {
+		return nil
+	}
 	pri, err := db.GetPrivate(sig.KeyId)
 	if err != nil {
 		return err
@@ -179,7 +182,11 @@ func (sig *TSigs) Sign(db IDbImp) error {
 	if err != nil {
 		return err
 	}
-	return db.SetSigs(sig.Id, sb.GetSigs())
+	err = db.SetSigs(sig.Id, sb.GetSigs())
+	if err == nil {
+		sig.Sigs = sb.GetSigs()
+	}
+	return err
 }
 
 type TxSigs []*TSigs
@@ -194,6 +201,15 @@ func (ss TxSigs) IsSign() bool {
 	return true
 }
 
+//交易状态
+const (
+	TTxStateNew    = iota //新交易
+	TTxStateSign          //已签名
+	TTxStatePool          //进入交易池
+	TTxStateBlock         //进去区块
+	TTxStateCancel        //作废
+)
+
 //临时交易信息
 type TTx struct {
 	Id       []byte             `bson:"_id"` //交易id
@@ -204,6 +220,7 @@ type TTx struct {
 	LockTime uint32             `bson:"lt"`
 	Time     int64              `bson:"time"` //创建时间
 	Desc     string             `bson:"desc"`
+	State    int                `bson:"state"` //TTxState*
 }
 
 //创建待签名对象
@@ -246,16 +263,15 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 		return err
 	}
 	//获取每个密钥的签名
-	for idx, pkh := range acc.Pkh {
-		keyid := GetPrivateId(pkh)
+	for idx, kid := range acc.Kid {
 		//获取需要签名的记录
-		sigs, err := st.db.GetSigs(txid, keyid, hash, iidx)
+		sigs, err := st.db.GetSigs(txid, kid, hash, iidx)
 		if err != nil {
 			continue
 		}
 		//如果还未签名
 		if !sigs.IsSign {
-			return fmt.Errorf("kid %s not sign at %d", keyid, idx)
+			return fmt.Errorf("kid %s not sign at %d", kid, idx)
 		}
 		wits.Sig = append(wits.Sig, sigs.Sigs)
 	}
@@ -270,6 +286,12 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	}
 	in.Script = script
 	return nil
+}
+
+//验证签名是否成功
+func (stx *TTx) Verify(db IDbImp, bi *xginx.BlockIndex) bool {
+	_, err := stx.ToTx(db, bi)
+	return err == nil
 }
 
 //转换为tx并将签名合并进去
@@ -328,6 +350,7 @@ func (u *TUser) SaveTx(db IDbImp, tx *xginx.TX, lis ISaveSigs, desc ...string) (
 //从区块交易创建
 func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 	v := &TTx{}
+	v.State = TTxStateNew
 	v.Id = tx.MustID().Bytes()
 	v.Ver = tx.Ver.ToUInt32()
 	v.LockTime = tx.LockTime
@@ -345,6 +368,7 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 //获取用户需要处理的交易
 func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error) {
 	ids := map[xginx.HASH256]bool{}
+	//获取我未签名的记录
 	col := ctx.table(TSigName)
 	iter, err := col.Find(ctx, bson.M{"uid": uid, "sigb": sign})
 	if err != nil {
@@ -362,6 +386,7 @@ func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	if err != nil {
 		return nil, err
 	}
+	//获取对应的交易信息
 	txs := []*TTx{}
 	for tid, _ := range ids {
 		tx, err := ctx.GetTx(tid[:])
@@ -380,7 +405,7 @@ func (ctx *dbimp) SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error {
 	return col.FindOneAndUpdate(ctx, bson.M{"_id": id}, doc).Err()
 }
 
-//获取签名对象
+//获取交易签名记录
 func (ctx *dbimp) GetSigs(tid xginx.HASH256, kid string, hash []byte, idx int) (*TSigs, error) {
 	col := ctx.table(TSigName)
 	res := col.FindOne(ctx, bson.M{"tid": tid, "kid": kid, "hash": hash, "idx": idx})
@@ -389,7 +414,7 @@ func (ctx *dbimp) GetSigs(tid xginx.HASH256, kid string, hash []byte, idx int) (
 	return v, err
 }
 
-//获取需要签名的记录
+//获取交易需要签名的记录
 func (ctx *dbimp) ListUserSigs(uid primitive.ObjectID, tid xginx.HASH256) (TxSigs, error) {
 	col := ctx.table(TSigName)
 	iter, err := col.Find(ctx, bson.M{"uid": uid, "tid": tid, "sigb": false})
@@ -438,6 +463,16 @@ func (ctx *dbimp) InsertSigs(sigs ...*TSigs) error {
 	}
 	_, err := col.InsertMany(ctx, ds)
 	return err
+}
+
+//设置交易状态
+func (ctx *dbimp) SetTxState(id []byte, state int) error {
+	col := ctx.table(TTxName)
+	sr := col.FindOneAndUpdate(ctx,
+		bson.M{"_id": id},
+		bson.M{"$set": bson.M{"state": state}},
+	)
+	return sr.Err()
 }
 
 //获取账户信息

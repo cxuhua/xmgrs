@@ -35,16 +35,12 @@ func NewPrivate(uid primitive.ObjectID, dk *DeterKey, desc string) *TPrivate {
 	dp.Pks = dp.Deter.GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.Id = GetPrivateId(dp.Pkh)
+	dp.Parent = dk.GetId()
 	dp.UserId = uid
 	dp.Cipher = CipherTypeNone
 	dp.Desc = desc
 	dp.Time = time.Now().Unix()
 	return dp
-}
-
-//创建账号并保存
-func (user *TUser) SaveAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAccount, error) {
-	return SaveAccount(db, user, num, less, arb)
 }
 
 //新建并写入私钥
@@ -68,6 +64,7 @@ func (user *TUser) NewPrivate(db IDbImp, desc string) (*TPrivate, error) {
 //私钥管理
 type TPrivate struct {
 	Id     string             `bson:"_id"`    //hash160作为id
+	Parent string             `bson:"parent"` //父私钥id
 	UserId primitive.ObjectID `bson:"uid"`    //所属用户
 	Cipher CipherType         `bson:"cipher"` //加密方式
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥

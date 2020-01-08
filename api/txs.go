@@ -174,16 +174,19 @@ func submitTxApi(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		txp := bi.GetTxPool()
+		err = txp.PushTx(bi, tx)
+		if err != nil {
+			return err
+		}
+		err = db.SetTxState(ttx.Id, core.TTxStatePool)
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(200, err))
-		return
-	}
-	txp := bi.GetTxPool()
-	err = txp.PushTx(bi, tx)
-	if err != nil {
-		c.JSON(http.StatusOK, NewModel(201, err))
 		return
 	}
 	c.JSON(http.StatusOK, NewModel(0, "OK"))
@@ -272,7 +275,7 @@ func createAccountApi(c *gin.Context) {
 		Num  uint8         `json:"num"`  //总的密钥数量
 		Less uint8         `json:"less"` //至少通过的签名数量
 		Arb  bool          `json:"arb"`  //是否仲裁
-		Pks  []string      `json:"pks"`  //相关的私钥
+		Kid  []string      `json:"kis"`  //相关的私钥
 		Desc string        `json:"desc"` //描述
 	}
 	type result struct {
@@ -283,7 +286,7 @@ func createAccountApi(c *gin.Context) {
 		Code: 0,
 	}
 	res.Item.Tags = []string{}
-	res.Item.Pks = []string{}
+	res.Item.Kid = []string{}
 	app := core.GetApp(c)
 	err := app.UseTx(func(db core.IDbImp) error {
 		acc, err := core.NewAccount(db, args.Num, args.Less, args.Arb, args.Id)
@@ -305,9 +308,7 @@ func createAccountApi(c *gin.Context) {
 		i.Less = acc.Less
 		i.Arb = acc.Arb != xginx.InvalidArb
 		i.Desc = acc.Desc
-		for _, h := range acc.Pkh {
-			i.Pks = append(res.Item.Pks, core.GetPrivateId(h))
-		}
+		i.Kid = acc.Kid
 		res.Item = i
 		return nil
 	})

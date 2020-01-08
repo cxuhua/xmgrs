@@ -14,7 +14,7 @@ type IRedisImp interface {
 	SetUserId(k string, id primitive.ObjectID, time time.Duration) error
 	//从redis获取用户id
 	GetUserId(k string) (primitive.ObjectID, error)
-	//清楚token
+	//删除token
 	DelUserId(k string) error
 }
 

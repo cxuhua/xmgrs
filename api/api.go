@@ -80,6 +80,7 @@ func IsLogin(c *gin.Context) {
 }
 
 func ApiEntry(rg *gin.RouterGroup) {
+	rg.POST("/register", registerApi)
 	rg.POST("/login", loginApi)
 	auth := rg.Group("/", IsLogin)
 	auth.GET("/quit/login", quitLoginApi)

@@ -42,6 +42,11 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAcc
 	return acc, nil
 }
 
+//创建账号并保存
+func (user *TUser) SaveAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAccount, error) {
+	return SaveAccount(db, user, num, less, arb)
+}
+
 //创建账号从区块账号
 func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account) (*TAccount, error) {
 	id, err := acc.GetAddress()
@@ -53,7 +58,9 @@ func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account) (*TAccount, e
 	a.Less = acc.Less
 	a.Arb = acc.Arb
 	a.Pks = acc.GetPks()
-	a.Pkh = acc.GetPkhs()
+	for _, pkh := range acc.GetPkhs() {
+		a.Kid = append(a.Kid, GetPrivateId(pkh))
+	}
 	a.Tags = []string{}
 	a.Time = time.Now().Unix()
 	return a, nil
@@ -98,29 +105,28 @@ type TAccount struct {
 	Less   uint8                `bson:"less"` //至少通过的签名数量
 	Arb    uint8                `bson:"arb"`  //是否仲裁
 	Pks    []xginx.PKBytes      `bson:"pks"`  //公钥
-	Pkh    []xginx.HASH160      `bson:"pkh"`  //相关的私钥
+	Kid    []string             `bson:"kid"`  //密钥id
 	Time   int64                `bson:"time"` //创建时间
 	Desc   string               `bson:"desc"` //描述
 }
 
 //获取第几个私钥
-func (a TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
-	if idx < 0 || idx <= len(a.Pkh) {
+func (acc TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
+	if idx < 0 || idx <= len(acc.Kid) {
 		return nil, errors.New("idx out bound")
 	}
-	id := GetPrivateId(a.Pkh[idx])
-	return db.GetPrivate(id)
+	return db.GetPrivate(acc.Kid[idx])
 }
 
-func (a *TAccount) ToAccount() *xginx.Account {
+func (acc *TAccount) ToAccount() *xginx.Account {
 	aj := &xginx.Account{
-		Num:  a.Num,
-		Less: a.Less,
-		Arb:  a.Arb,
+		Num:  acc.Num,
+		Less: acc.Less,
+		Arb:  acc.Arb,
 		Pubs: []*xginx.PublicKey{},
 		Pris: xginx.PrivatesMap{},
 	}
-	for _, pks := range a.Pks {
+	for _, pks := range acc.Pks {
 		pub, err := xginx.NewPublicKey(pks.Bytes())
 		if err != nil {
 			panic(err)
@@ -130,17 +136,17 @@ func (a *TAccount) ToAccount() *xginx.Account {
 	return aj
 }
 
-func (a TAccount) GetAddress() xginx.Address {
-	return a.Id
+func (acc TAccount) GetAddress() xginx.Address {
+	return acc.Id
 }
 
-func (a TAccount) GetPkh() (xginx.HASH160, error) {
-	return xginx.HashPks(a.Num, a.Less, a.Arb, a.Pks)
+func (acc TAccount) GetPkh() (xginx.HASH160, error) {
+	return xginx.HashPks(acc.Num, acc.Less, acc.Arb, acc.Pks)
 }
 
 //获取账户金额
-func (a *TAccount) ListCoins(bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
-	pkh, err := a.Id.GetPkh()
+func (acc *TAccount) ListCoins(bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
+	pkh, err := acc.Id.GetPkh()
 	if err != nil {
 		return nil, err
 	}

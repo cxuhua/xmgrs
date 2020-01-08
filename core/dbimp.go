@@ -46,6 +46,8 @@ type IDbImp interface {
 	ListAccounts(uid primitive.ObjectID) ([]*TAccount, error)
 	//获取交易信息
 	GetTx(id []byte) (*TTx, error)
+	//更新交易状态
+	SetTxState(id []byte, state int) error
 	//删除交易信息
 	DeleteTx(id []byte) error
 	//插入交易信息

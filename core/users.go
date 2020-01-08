@@ -14,11 +14,12 @@ const (
 
 //用户管理
 type TUser struct {
-	Id     primitive.ObjectID `bson:"_id"`
-	Mobile string             `bson:"mobile"`
-	Pass   xginx.HASH256      `bson:"pass"`  //hash256密钥
-	Deter  *DeterKey          `bson:"deter"` //确定性key
-	Token  string             `bson:"token"`
+	Id     primitive.ObjectID `bson:"_id"`    //id
+	Mobile string             `bson:"mobile"` //手机号
+	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
+	Deter  *DeterKey          `bson:"deter"`  //确定性key
+	KeyId  string             `bson:"kid"`    //私钥id
+	Token  string             `bson:"token"`  //登陆token
 }
 
 func NewUser(mobile string, pass []byte) *TUser {
@@ -26,6 +27,7 @@ func NewUser(mobile string, pass []byte) *TUser {
 	u.Id = primitive.NewObjectID()
 	u.Mobile = mobile
 	u.Deter = NewDeterKey()
+	u.KeyId = u.Deter.GetId()
 	u.Pass = xginx.Hash256From(pass)
 	return u
 }

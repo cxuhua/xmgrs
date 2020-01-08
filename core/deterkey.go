@@ -33,6 +33,11 @@ func LoadDeterKey(s string) (*DeterKey, error) {
 	return dk, nil
 }
 
+func (k DeterKey) GetId() string {
+	pkh := k.GetPks().Hash()
+	return GetPrivateId(pkh)
+}
+
 func (k DeterKey) GetPks() xginx.PKBytes {
 	return k.GetPrivateKey().PublicKey().GetPks()
 }

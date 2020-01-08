@@ -38,10 +38,15 @@ func signTxApi(c *gin.Context) {
 	app := core.GetApp(c)
 	uid := GetAppUserId(c)
 	id := xginx.NewHASH256(args.Id)
+	bi := xginx.GetBlockIndex()
 	err := app.UseTx(func(db core.IDbImp) error {
-		_, err := db.GetTx(id.Bytes())
+		ttx, err := db.GetTx(id.Bytes())
 		if err != nil {
 			return err
+		}
+		//如果已经签名直接返回
+		if ttx.State == core.TTxStateSign {
+			return nil
 		}
 		sigs, err := db.ListUserSigs(uid, id)
 		if err != nil {
@@ -55,6 +60,15 @@ func signTxApi(c *gin.Context) {
 			if err != nil {
 				return err
 			}
+		}
+		//再次查询交易信息
+		ttx, err = db.GetTx(id.Bytes())
+		if err != nil {
+			return err
+		}
+		//如果签名验证成功,更新为已经签名
+		if ttx.Verify(db, bi) {
+			db.SetTxState(ttx.Id, core.TTxStateSign)
 		}
 		return nil
 	})
@@ -73,6 +87,7 @@ type TTxModel struct {
 	LockTime uint32       `json:"lt"`
 	Time     int64        `json:"time"`
 	Desc     string       `json:"desc"`
+	State    int          `json:"state"`
 }
 
 func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
@@ -84,6 +99,7 @@ func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 		LockTime: ttx.LockTime,
 		Time:     ttx.Time,
 		Desc:     ttx.Desc,
+		State:    ttx.State,
 	}
 	for _, in := range ttx.Ins {
 		out, err := in.ToTxIn().LoadTxOut(bi)
@@ -163,7 +179,7 @@ func listUserAccountsApi(c *gin.Context) {
 		Num  uint8         `json:"num"`  //总的密钥数量
 		Less uint8         `json:"less"` //至少通过的签名数量
 		Arb  bool          `json:"arb"`  //是否仲裁
-		Pks  []string      `json:"pks"`  //相关的私钥
+		Kid  []string      `json:"kid"`  //相关的私钥
 		Desc string        `json:"desc"` //描述
 	}
 	type result struct {
@@ -197,10 +213,7 @@ func listUserAccountsApi(c *gin.Context) {
 			Less: v.Less,
 			Arb:  v.Arb != xginx.InvalidArb,
 			Desc: v.Desc,
-			Pks:  []string{},
-		}
-		for _, h := range v.Pkh {
-			i.Pks = append(i.Pks, core.GetPrivateId(h))
+			Kid:  v.Kid,
 		}
 		res.Items = append(res.Items, i)
 	}

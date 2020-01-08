@@ -29,10 +29,30 @@ type mylis struct {
 
 func (lis *mylis) OnLinkBlock(blk *xginx.BlockInfo) {
 	//当一个区块连接到链上
+	lis.app.UseDb(func(db core.IDbImp) error {
+		for _, tx := range blk.Txs {
+			id, err := tx.ID()
+			if err != nil {
+				continue
+			}
+			db.SetTxState(id[:], core.TTxStateBlock)
+		}
+		return nil
+	})
 }
 
 func (lis *mylis) OnUnlinkBlock(blk *xginx.BlockInfo) {
 	//当一个区块从链断开
+	lis.app.UseDb(func(db core.IDbImp) error {
+		for _, tx := range blk.Txs {
+			id, err := tx.ID()
+			if err != nil {
+				continue
+			}
+			db.SetTxState(id[:], core.TTxStateCancel)
+		}
+		return nil
+	})
 }
 
 func (lis *mylis) runHttp() {
