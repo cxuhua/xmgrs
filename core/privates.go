@@ -63,7 +63,7 @@ func (user *TUser) NewPrivate(db IDbImp, desc string) (*TPrivate, error) {
 
 //私钥管理
 type TPrivate struct {
-	Id     string             `bson:"_id"`    //hash160作为id
+	Id     string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
 	Parent string             `bson:"parent"` //父私钥id
 	UserId primitive.ObjectID `bson:"uid"`    //所属用户
 	Cipher CipherType         `bson:"cipher"` //加密方式
