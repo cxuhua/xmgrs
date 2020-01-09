@@ -74,8 +74,12 @@ type dbimp struct {
 	isTx bool
 }
 
-func (db *dbimp) table(name string, opts ...*options.CollectionOptions) *mongo.Collection {
-	return db.Client().Database(config.DbName).Collection(name, opts...)
+func (db *dbimp) database(opts ...*options.DatabaseOptions) *mongo.Database {
+	return db.Client().Database(config.DbName, opts...)
+}
+
+func (db *dbimp) table(tbl string, opts ...*options.CollectionOptions) *mongo.Collection {
+	return db.database().Collection(tbl, opts...)
 }
 
 func (db *dbimp) UseTx(fn func(db IDbImp) error) error {

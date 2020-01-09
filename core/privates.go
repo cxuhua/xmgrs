@@ -130,8 +130,8 @@ func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
 	return v, nil
 }
 
-func (ctx *dbimp) IncDeterIdx(name string, id interface{}) error {
-	col := ctx.table(name)
+func (ctx *dbimp) IncDeterIdx(tbl string, id interface{}) error {
+	col := ctx.table(tbl)
 	doc := bson.M{"$inc": bson.M{"deter.idx": 1}}
 	_, err := col.UpdateOne(ctx, bson.M{"_id": id}, doc)
 	return err
