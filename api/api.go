@@ -37,7 +37,7 @@ func InitEngine(ctx context.Context) *gin.Engine {
 	m.Use(gin.Logger(), gin.Recovery())
 	v1 := m.Group("/v1")
 	v1.Use(core.AppHandler(ctx))
-	ApiEntry(v1)
+	ApiV1Entry(v1)
 	return m
 }
 
@@ -79,9 +79,10 @@ func IsLogin(c *gin.Context) {
 	c.Next()
 }
 
-func ApiEntry(rg *gin.RouterGroup) {
+func ApiV1Entry(rg *gin.RouterGroup) {
 	rg.POST("/register", registerApi)
 	rg.POST("/login", loginApi)
+	rg.POST("/account/prove", accountProveApi)
 	auth := rg.Group("/", IsLogin)
 	auth.GET("/quit/login", quitLoginApi)
 	auth.GET("/user/info", userInfoApi)
@@ -90,10 +91,10 @@ func ApiEntry(rg *gin.RouterGroup) {
 	auth.GET("/list/txs/:addr", listTxsApi)
 	auth.GET("/list/accounts", listUserAccountsApi)
 	auth.GET("/list/sign/txs", listUserSignTxsApi)
-	auth.POST("/sign/tx", signTxApi)
 	auth.GET("/list/privates", listPrivatesApi)
 	auth.POST("/new/private", createUserPrivateApi)
 	auth.POST("/new/account", createAccountApi)
 	auth.POST("/new/tx", createTxApi)
+	auth.POST("/sign/tx", signTxApi)
 	auth.POST("/submit/tx", submitTxApi)
 }

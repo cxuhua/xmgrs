@@ -48,8 +48,7 @@ func (st *AccountTestSuite) TestListCoins() {
 
 func (st *AccountTestSuite) TearDownTest() {
 	//删除私钥
-	for _, v := range st.acc.Pkh {
-		id := GetPrivateId(v)
+	for _, id := range st.acc.Kid {
 		err := st.db.DeletePrivate(id)
 		st.Assert().NoError(err)
 	}

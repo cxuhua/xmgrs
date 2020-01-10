@@ -42,7 +42,7 @@ var (
 	//连接字符串设置
 	RedisURI = "redis://127.0.0.1:6379"
 	//数据库连接字符串
-	MongoURI = "mongodb://127.0.0.1:27017"
+	MongoURI = "mongodb://127.0.0.1:27017/?replicaSet=rs"
 	//连接池设置
 	MaxPoolSize = uint64(2000)
 	MinPoolSize = uint64(10)

@@ -52,7 +52,7 @@ func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) *xginx.Account {
 	if err != nil {
 		return nil
 	}
-	return acc.ToAccount()
+	return acc.ToAccount(st.db)
 }
 
 //获取输出地址的扩展
@@ -206,7 +206,7 @@ const (
 	TTxStateNew    = iota //新交易
 	TTxStateSign          //已签名
 	TTxStatePool          //进入交易池
-	TTxStateBlock         //进去区块
+	TTxStateBlock         //进入区块
 	TTxStateCancel        //作废
 )
 
@@ -257,7 +257,7 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 		return err
 	}
 	//创建脚本
-	wits := acc.ToAccount().NewWitnessScript()
+	wits := acc.ToAccount(st.db).NewWitnessScript()
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
@@ -286,6 +286,11 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 	}
 	in.Script = script
 	return nil
+}
+
+//设置交易状态
+func (stx *TTx) SetTxState(db IDbImp, state int) error {
+	return db.SetTxState(stx.Id, state)
 }
 
 //验证签名是否成功
@@ -483,7 +488,7 @@ func (ctx *dbimp) GetTx(id []byte) (*TTx, error) {
 	return a, err
 }
 
-//删除账号
+//删除交易信息
 func (ctx *dbimp) DeleteTx(id []byte) error {
 	//删除交易对应的签名列表
 	col := ctx.table(TSigName)

@@ -118,7 +118,8 @@ func (acc TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 	return db.GetPrivate(acc.Kid[idx])
 }
 
-func (acc *TAccount) ToAccount() *xginx.Account {
+//pri是否加载私钥
+func (acc *TAccount) ToAccount(db IDbImp, pri ...bool) *xginx.Account {
 	aj := &xginx.Account{
 		Num:  acc.Num,
 		Less: acc.Less,
@@ -132,6 +133,16 @@ func (acc *TAccount) ToAccount() *xginx.Account {
 			panic(err)
 		}
 		aj.Pubs = append(aj.Pubs, pub)
+	}
+	if len(pri) == 0 || !pri[0] {
+		return aj
+	}
+	for _, kid := range acc.Kid {
+		pri, err := db.GetPrivate(kid)
+		if err != nil {
+			continue
+		}
+		aj.Pris[pri.Pks.Hash()] = pri.ToPrivate()
 	}
 	return aj
 }

@@ -162,7 +162,7 @@ func submitTxApi(c *gin.Context) {
 	uid := GetAppUserId(c)
 	bi := xginx.GetBlockIndex()
 	var tx *xginx.TX = nil
-	err := app.UseDb(func(db core.IDbImp) error {
+	err := app.UseTx(func(db core.IDbImp) error {
 		ttx, err := db.GetTx(id)
 		if err != nil {
 			return err
@@ -174,12 +174,12 @@ func submitTxApi(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		txp := bi.GetTxPool()
-		err = txp.PushTx(bi, tx)
+		err = ttx.SetTxState(db, core.TTxStatePool)
 		if err != nil {
 			return err
 		}
-		err = db.SetTxState(ttx.Id, core.TTxStatePool)
+		txp := bi.GetTxPool()
+		err = txp.PushTx(bi, tx)
 		if err != nil {
 			return err
 		}

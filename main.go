@@ -29,13 +29,21 @@ type mylis struct {
 
 func (lis *mylis) OnLinkBlock(blk *xginx.BlockInfo) {
 	//当一个区块连接到链上
+	//更新交易交易状态
 	lis.app.UseDb(func(db core.IDbImp) error {
 		for _, tx := range blk.Txs {
 			id, err := tx.ID()
 			if err != nil {
 				continue
 			}
-			db.SetTxState(id[:], core.TTxStateBlock)
+			ttx, err := db.GetTx(id[:])
+			if err != nil {
+				continue
+			}
+			err = ttx.SetTxState(db, core.TTxStateBlock)
+			if err != nil {
+				xginx.LogError("set tx state error", err)
+			}
 		}
 		return nil
 	})
@@ -49,7 +57,14 @@ func (lis *mylis) OnUnlinkBlock(blk *xginx.BlockInfo) {
 			if err != nil {
 				continue
 			}
-			db.SetTxState(id[:], core.TTxStateCancel)
+			ttx, err := db.GetTx(id[:])
+			if err != nil {
+				continue
+			}
+			err = ttx.SetTxState(db, core.TTxStateCancel)
+			if err != nil {
+				xginx.LogError("set tx state error", err)
+			}
 		}
 		return nil
 	})

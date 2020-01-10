@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cxuhua/xmgrs/util"
+
 	"github.com/cxuhua/xginx"
 
 	"github.com/cxuhua/xmgrs/core"
@@ -13,6 +15,60 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//账号证明信息，证明是否有此账号的控制权
+func accountProveApi(c *gin.Context) {
+	args := struct {
+		Addr xginx.Address `form:"addr"` //账号地址
+		Msg  string        `form:"msg"`  //签名随机信息
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	type result struct {
+		Code  int           `json:"code"`
+		Addr  xginx.Address `json:"addr"`  //输入的地址
+		Msg   string        `json:"msg"`   //输入的随机信息
+		Nonce string        `json:"nonce"` //服务器端随机字符串，防止接口被利用
+		Acc   string        `json:"acc"`   //b58账户账号信息
+		Sigs  []string      `json:"sigs"`  //b58编码签名信息
+	}
+	//随机生成32字节数据用来和输入消息拼合在一起签名
+	nonce := util.NonceStr(32)
+	//添加一些防止被利用
+	app := core.GetApp(c)
+	res := result{
+		Addr:  args.Addr,
+		Msg:   args.Msg,
+		Nonce: nonce,
+	}
+	hv := xginx.Hash256([]byte(args.Msg + nonce))
+	err := app.UseDb(func(db core.IDbImp) error {
+		sac, err := db.GetAccount(args.Addr)
+		if err != nil {
+			return err
+		}
+		acc := sac.ToAccount(db, true)
+		str, err := acc.Dump(false)
+		if err != nil {
+			return err
+		}
+		res.Acc = str
+		sigs, err := acc.SignAll(hv)
+		if err != nil {
+			return err
+		}
+		res.Sigs = sigs
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+//退出登陆
 func quitLoginApi(c *gin.Context) {
 	app := core.GetApp(c)
 	uid := GetAppUserId(c)
@@ -68,9 +124,9 @@ func signTxApi(c *gin.Context) {
 		}
 		//如果签名验证成功,更新为已经签名
 		if ttx.Verify(db, bi) {
-			db.SetTxState(ttx.Id, core.TTxStateSign)
+			err = ttx.SetTxState(db, core.TTxStateSign)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(200, err))

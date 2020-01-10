@@ -189,6 +189,34 @@ func (st *ApiTestSuite) TearDownTest() {
 
 }
 
+func (st *ApiTestSuite) TestAccountProve() {
+	msg := "dfldjfkdj&*&8"
+	v := url.Values{}
+	v.Set("addr", string(st.aa.Id))
+	v.Set("msg", msg)
+	any, err := st.Post("/v1/account/prove", v)
+	st.Require().NoError(err)
+	st.Require().NotNil(any)
+	st.Require().Equal(msg, any.Get("msg").ToString(), "msg error")
+	nonce := any.Get("nonce").ToString()
+	hv := xginx.Hash256([]byte(msg + nonce))
+	accs := any.Get("acc")
+	acc, err := xginx.LoadAccount(accs.ToString())
+	st.Require().NoError(err)
+	addr, err := acc.GetAddress()
+	st.Require().NoError(err)
+	st.Require().Equal(string(addr), string(st.aa.Id), "addr error")
+	sigs := any.Get("sigs")
+	st.Require().True(sigs.Size() > 0)
+	ss := []string{}
+	for i := 0; i < sigs.Size(); i++ {
+		sv := sigs.Get(i).ToString()
+		ss = append(ss, sv)
+	}
+	err = acc.VerifyAll(hv, ss)
+	st.Require().NoError(err)
+}
+
 func (st *ApiTestSuite) TearDownSuite() {
 	xginx.CloseTestBlock(st.bi)
 
