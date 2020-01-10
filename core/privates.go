@@ -29,27 +29,36 @@ func GetPrivateId(pkh xginx.HASH160) string {
 	return id
 }
 
-func NewPrivate(uid primitive.ObjectID, dk *DeterKey, desc string) *TPrivate {
+func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, pass ...string) *TPrivate {
 	dp := &TPrivate{}
-	dp.Deter = dk.New(dk.Index)
-	dp.Pks = dp.Deter.GetPks()
+	ndk := dk.New(idx)
+	dp.Pks = ndk.GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.Id = GetPrivateId(dp.Pkh)
 	dp.Parent = dk.GetId()
 	dp.UserId = uid
-	dp.Cipher = CipherTypeNone
+	if len(pass) > 0 {
+		dp.Cipher = CipherTypeAes
+	} else {
+		dp.Cipher = CipherTypeNone
+	}
 	dp.Desc = desc
 	dp.Time = time.Now().Unix()
+	dp.Keys = ndk.Dump(pass...)
 	return dp
 }
 
 //新建并写入私钥
-func (user *TUser) NewPrivate(db IDbImp, desc string) (*TPrivate, error) {
+func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
-	ptr := NewPrivate(user.Id, user.Deter, desc)
-	err := db.InsertPrivate(ptr)
+	dk, err := user.GetDeterKey(pass...)
+	if err != nil {
+		return nil, err
+	}
+	ptr := NewPrivate(user.Id, user.Idx, dk, desc, pass...)
+	err = db.InsertPrivate(ptr)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +66,7 @@ func (user *TUser) NewPrivate(db IDbImp, desc string) (*TPrivate, error) {
 	if err != nil {
 		return nil, err
 	}
-	user.Deter.Index++
+	user.Idx++
 	return ptr, nil
 }
 
@@ -69,14 +78,25 @@ type TPrivate struct {
 	Cipher CipherType         `bson:"cipher"` //加密方式
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
-	Deter  *DeterKey          `bson:"deter"`  //私钥内容
+	Keys   string             `bson:"keys"`   //私钥内容
+	Idx    uint32             `bson:"idx"`    //索引
 	Time   int64              `json:"time"`   //创建时间
 	Desc   string             `bson:"desc"`   //描述
 }
 
-func (p *TPrivate) New(db IDbImp, desc string) (*TPrivate, error) {
-	pri := NewPrivate(p.UserId, p.Deter, desc)
-	err := db.InsertPrivate(pri)
+//加载密钥
+func (p *TPrivate) GetDeter(pass ...string) (*DeterKey, error) {
+	return LoadDeterKey(p.Keys, pass...)
+}
+
+//pass存在启用加密方式
+func (p *TPrivate) New(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
+	dk, err := p.GetDeter(pass...)
+	if err != nil {
+		return nil, err
+	}
+	pri := NewPrivate(p.UserId, p.Idx, dk, desc, pass...)
+	err = db.InsertPrivate(pri)
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +104,21 @@ func (p *TPrivate) New(db IDbImp, desc string) (*TPrivate, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.Deter.Index++
+	p.Idx++
 	return pri, nil
 }
 
 //pw 根据加密方式暂时解密生成私钥对象
-func (p *TPrivate) ToPrivate() *xginx.PrivateKey {
-	return p.Deter.GetPrivateKey()
+func (p *TPrivate) ToPrivate(pass ...string) (*xginx.PrivateKey, error) {
+	//必须有密码
+	if p.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
+		return nil, errors.New("miss keys pass")
+	}
+	dk, err := p.GetDeter(pass...)
+	if err != nil {
+		return nil, err
+	}
+	return dk.GetPrivateKey()
 }
 
 //获取用户的私钥
@@ -132,7 +160,7 @@ func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
 
 func (ctx *dbimp) IncDeterIdx(tbl string, id interface{}) error {
 	col := ctx.table(tbl)
-	doc := bson.M{"$inc": bson.M{"deter.idx": 1}}
+	doc := bson.M{"$inc": bson.M{"idx": 1}}
 	_, err := col.UpdateOne(ctx, bson.M{"_id": id}, doc)
 	return err
 }

@@ -15,14 +15,13 @@ import (
 
 //确定性私钥地址
 type DeterKey struct {
-	Root  []byte `bson:"root"` //私钥内容
-	Key   []byte `bson:"key"`  //密钥编码
-	Index uint32 `bson:"idx"`  //自增索引
+	Root []byte `bson:"root"` //私钥内容
+	Key  []byte `bson:"key"`  //密钥编码
 }
 
 //加载key
-func LoadDeterKey(s string) (*DeterKey, error) {
-	data, err := xginx.HashLoad(s)
+func LoadDeterKey(s string, pass ...string) (*DeterKey, error) {
+	data, err := xginx.HashLoad(s, pass...)
 	if err != nil {
 		return nil, err
 	}
@@ -39,26 +38,30 @@ func (k DeterKey) GetId() string {
 }
 
 func (k DeterKey) GetPks() xginx.PKBytes {
-	return k.GetPrivateKey().PublicKey().GetPks()
+	pri, err := k.GetPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	return pri.PublicKey().GetPks()
 }
 
-func (k DeterKey) GetPrivateKey() *xginx.PrivateKey {
+func (k DeterKey) GetPrivateKey() (*xginx.PrivateKey, error) {
 	pri, err := xginx.NewPrivateKeyWithBytes(k.Root)
 	if err != nil {
 		panic(err)
 	}
-	return pri
+	return pri, nil
 }
 
 //备份密钥
-func (k DeterKey) Dump() string {
+func (k DeterKey) Dump(pass ...string) string {
 	data := append([]byte{}, k.Root...)
 	data = append(data, k.Key...)
-	return xginx.HashDump(data)
+	return xginx.HashDump(data, pass...)
 }
 
 func (k DeterKey) String() string {
-	return fmt.Sprintf("Root=%s,Key=%s,Idx=%d", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key), k.Index)
+	return fmt.Sprintf("Root=%s,Key=%s", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key))
 }
 
 //派生一个密钥

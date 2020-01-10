@@ -17,19 +17,23 @@ type TUser struct {
 	Id     primitive.ObjectID `bson:"_id"`    //id
 	Mobile string             `bson:"mobile"` //手机号
 	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
-	Deter  *DeterKey          `bson:"deter"`  //确定性key
-	KeyId  string             `bson:"kid"`    //私钥id
+	Keys   string             `bson:"keys"`   //确定性key
+	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
 }
 
-func NewUser(mobile string, pass []byte) *TUser {
+func NewUser(mobile string, lpass []byte, kpass ...string) *TUser {
 	u := &TUser{}
 	u.Id = primitive.NewObjectID()
 	u.Mobile = mobile
-	u.Deter = NewDeterKey()
-	u.KeyId = u.Deter.GetId()
-	u.Pass = xginx.Hash256From(pass)
+	u.Keys = NewDeterKey().Dump(kpass...)
+	u.Idx = 0
+	u.Pass = xginx.Hash256From(lpass)
 	return u
+}
+
+func (u *TUser) GetDeterKey(pass ...string) (*DeterKey, error) {
+	return LoadDeterKey(u.Keys, pass...)
 }
 
 func (u *TUser) CheckPass(pass string) bool {

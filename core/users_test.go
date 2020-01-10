@@ -13,8 +13,12 @@ func TestAddUsers(t *testing.T) {
 	app := InitApp(context.Background())
 	defer app.Close()
 	err := app.UseTx(func(db IDbImp) error {
+		user, err := db.GetUserInfoWithMobile("17716858036")
+		if err == nil {
+			db.DeleteUser(user.Id)
+		}
 		u := NewUser("17716858036", []byte("xh0714"))
-		err := db.InsertUser(u)
+		err = db.InsertUser(u)
 		if err != nil {
 			return err
 		}
@@ -33,7 +37,7 @@ func TestAddUsers(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if u.Deter.Index != 2 {
+		if u.Idx != 2 {
 			return errors.New("count error")
 		}
 		err = db.DeleteUser(u.Id)

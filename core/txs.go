@@ -52,7 +52,8 @@ func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) *xginx.Account {
 	if err != nil {
 		return nil
 	}
-	return acc.ToAccount(st.db)
+	//只需要账号信息，不需要私钥
+	return acc.ToAccount(st.db, false)
 }
 
 //获取输出地址的扩展
@@ -84,7 +85,7 @@ func (st *DbSignListener) GetKeep() xginx.Address {
 }
 
 //获取签名信息
-func (st *DbSignListener) SignTx(singer xginx.ISigner) error {
+func (st *DbSignListener) SignTx(singer xginx.ISigner, pass ...string) error {
 	addr := singer.GetAddress()
 	//获取对应的账号
 	acc, err := st.db.GetAccount(addr)
@@ -169,7 +170,7 @@ type TSigs struct {
 }
 
 //签名并保存
-func (sig *TSigs) Sign(db IDbImp) error {
+func (sig *TSigs) Sign(db IDbImp, pass ...string) error {
 	//如果已经签名直接返回成功
 	if sig.IsSign {
 		return nil
@@ -178,7 +179,11 @@ func (sig *TSigs) Sign(db IDbImp) error {
 	if err != nil {
 		return err
 	}
-	sb, err := pri.ToPrivate().Sign(sig.Hash)
+	xpri, err := pri.ToPrivate(pass...)
+	if err != nil {
+		return err
+	}
+	sb, err := xpri.Sign(sig.Hash)
 	if err != nil {
 		return err
 	}
@@ -242,7 +247,7 @@ type setsigner struct {
 }
 
 //查询签名数据并设置脚本
-func (st *setsigner) SignTx(singer xginx.ISigner) error {
+func (st *setsigner) SignTx(singer xginx.ISigner, pass ...string) error {
 	tx, in, out, iidx := singer.GetObjs()
 	txid, err := tx.ID()
 	if err != nil {
@@ -257,7 +262,7 @@ func (st *setsigner) SignTx(singer xginx.ISigner) error {
 		return err
 	}
 	//创建脚本
-	wits := acc.ToAccount(st.db).NewWitnessScript()
+	wits := acc.ToAccount(st.db, false, pass...).NewWitnessScript()
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
@@ -300,7 +305,7 @@ func (stx *TTx) Verify(db IDbImp, bi *xginx.BlockIndex) bool {
 }
 
 //转换为tx并将签名合并进去
-func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
+func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex, pass ...string) (*xginx.TX, error) {
 	tx := xginx.NewTx()
 	tx.Ver = xginx.VarUInt(stx.Ver)
 	for _, in := range stx.Ins {
@@ -311,7 +316,7 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex) (*xginx.TX, error) {
 	}
 	tx.LockTime = stx.LockTime
 	//使用数据库中的签名设置脚本
-	err := tx.Sign(bi, &setsigner{db: db})
+	err := tx.Sign(bi, &setsigner{db: db}, pass...)
 	if err != nil {
 		return nil, err
 	}

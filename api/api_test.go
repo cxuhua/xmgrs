@@ -227,6 +227,6 @@ func (st *ApiTestSuite) TearDownSuite() {
 }
 
 func TestApi(t *testing.T) {
-	s := new(ApiTestSuite)
-	suite.Run(t, s)
+	st := new(ApiTestSuite)
+	suite.Run(t, st)
 }

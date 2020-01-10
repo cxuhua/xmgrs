@@ -13,13 +13,14 @@ import (
 func TestLoadDumpKey(t *testing.T) {
 	as := assert.New(t)
 	k1 := NewDeterKey()
-	s := k1.Dump()
-	k2, err := LoadDeterKey(s)
+	s := k1.Dump("1111")
+	k2, err := LoadDeterKey(s, "1111")
 	as.NoError(err)
 	as.Equal(k1.Root, k2.Root)
 	as.Equal(k1.Key, k2.Key)
 	msg := xginx.Hash256([]byte("dkfsdnf(9343"))
-	pri := k2.GetPrivateKey()
+	pri, err := k2.GetPrivateKey()
+	as.NoError(err)
 	sig, err := pri.Sign(msg)
 	as.NoError(err)
 	pub := pri.PublicKey()
@@ -31,12 +32,16 @@ func TestNewPrivate(t *testing.T) {
 	app := InitApp(context.Background())
 	defer app.Close()
 	err := app.UseTx(func(db IDbImp) error {
-		user := NewUser("17716858036", []byte("xh0714"))
-		err := db.InsertUser(user)
+		user, err := db.GetUserInfoWithMobile("17716858036")
+		if err == nil {
+			db.DeleteUser(user.Id)
+		}
+		user = NewUser("17716858036", []byte("xh0714"), "1111")
+		err = db.InsertUser(user)
 		if err != nil {
 			return err
 		}
-		dp, err := user.NewPrivate(db, "测试私钥1")
+		dp, err := user.NewPrivate(db, "测试私钥1", "1111")
 		if err != nil {
 			return err
 		}

@@ -117,10 +117,10 @@ func TestTxsSuite(t *testing.T) {
 	app := InitApp(context.Background())
 	defer app.Close()
 	err := app.UseTx(func(db IDbImp) error {
-		s := new(TxsTestSuite)
-		s.app = app
-		s.db = db
-		suite.Run(t, s)
+		st := new(TxsTestSuite)
+		st.app = app
+		st.db = db
+		suite.Run(t, st)
 		if t.Failed() {
 			return errors.New("TestAccounts test failed")
 		} else {
