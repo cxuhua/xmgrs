@@ -13,7 +13,10 @@ import (
 func TestLoadDumpKey(t *testing.T) {
 	as := assert.New(t)
 	k1 := NewDeterKey()
-	s := k1.Dump("1111")
+	s, err := k1.Dump("1111")
+	if err != nil {
+		t.Fatal(err)
+	}
 	k2, err := LoadDeterKey(s, "1111")
 	as.NoError(err)
 	as.Equal(k1.Root, k2.Root)

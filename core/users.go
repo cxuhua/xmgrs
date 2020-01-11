@@ -26,7 +26,11 @@ func NewUser(mobile string, lpass []byte, kpass ...string) *TUser {
 	u := &TUser{}
 	u.Id = primitive.NewObjectID()
 	u.Mobile = mobile
-	u.Keys = NewDeterKey().Dump(kpass...)
+	keys, err := NewDeterKey().Dump(kpass...)
+	if err != nil {
+		panic(err)
+	}
+	u.Keys = keys
 	u.Idx = 0
 	u.Pass = xginx.Hash256From(lpass)
 	return u

@@ -37,14 +37,18 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 	dp.Id = GetPrivateId(dp.Pkh)
 	dp.Parent = dk.GetId()
 	dp.UserId = uid
-	if len(pass) > 0 {
+	if len(pass) > 0 && pass[0] != "" {
 		dp.Cipher = CipherTypeAes
 	} else {
 		dp.Cipher = CipherTypeNone
 	}
 	dp.Desc = desc
 	dp.Time = time.Now().Unix()
-	dp.Keys = ndk.Dump(pass...)
+	keys, err := ndk.Dump(pass...)
+	if err != nil {
+		panic(err)
+	}
+	dp.Keys = keys
 	return dp
 }
 
@@ -110,7 +114,7 @@ func (p *TPrivate) New(db IDbImp, desc string, pass ...string) (*TPrivate, error
 
 //pw 根据加密方式暂时解密生成私钥对象
 func (p *TPrivate) ToPrivate(pass ...string) (*xginx.PrivateKey, error) {
-	//如果有密码
+	//如果有加密，密码不能为空
 	if p.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
 		return nil, errors.New("miss keys pass")
 	}

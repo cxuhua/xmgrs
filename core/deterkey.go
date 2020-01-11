@@ -46,15 +46,11 @@ func (k DeterKey) GetPks() xginx.PKBytes {
 }
 
 func (k DeterKey) GetPrivateKey() (*xginx.PrivateKey, error) {
-	pri, err := xginx.NewPrivateKeyWithBytes(k.Root)
-	if err != nil {
-		panic(err)
-	}
-	return pri, nil
+	return xginx.NewPrivateKeyWithBytes(k.Root)
 }
 
 //备份密钥
-func (k DeterKey) Dump(pass ...string) string {
+func (k DeterKey) Dump(pass ...string) (string, error) {
 	data := append([]byte{}, k.Root...)
 	data = append(data, k.Key...)
 	return xginx.HashDump(data, pass...)

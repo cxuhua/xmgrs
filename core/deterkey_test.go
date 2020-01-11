@@ -7,7 +7,10 @@ import (
 
 func TestNewDeterKey(t *testing.T) {
 	dk := NewDeterKey()
-	s := dk.Dump("1212")
+	s, err := dk.Dump("1212")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pk, err := LoadDeterKey(s, "1212")
 	if err != nil {
 		t.Fatal(err)
