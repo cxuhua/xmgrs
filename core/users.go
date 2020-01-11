@@ -17,7 +17,7 @@ type TUser struct {
 	Id     primitive.ObjectID `bson:"_id"`    //id
 	Mobile string             `bson:"mobile"` //手机号
 	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
-	Keys   string             `bson:"keys"`   //确定性key
+	Keys   string             `bson:"keys"`   //确定性key b58编码
 	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
 }

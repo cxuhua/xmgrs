@@ -322,7 +322,8 @@ func createAccountApi(c *gin.Context) {
 //创建一个私钥
 func createUserPrivateApi(c *gin.Context) {
 	args := struct {
-		Desc string `form:"desc"`
+		Desc string `form:"desc"` //私钥描述
+		Pass string `form:"pass"` //私钥密码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -340,13 +341,17 @@ func createUserPrivateApi(c *gin.Context) {
 		Code int  `json:"code"`
 		Item item `json:"item"`
 	}
+	pass := []string{}
+	if args.Pass != "" {
+		pass = []string{args.Pass}
+	}
 	m := result{}
 	err := app.UseTx(func(db core.IDbImp) error {
 		user, err := db.GetUserInfo(uid)
 		if err != nil {
 			return err
 		}
-		pri, err := user.NewPrivate(db, args.Desc)
+		pri, err := user.NewPrivate(db, args.Desc, pass...)
 		if err != nil {
 			return err
 		}

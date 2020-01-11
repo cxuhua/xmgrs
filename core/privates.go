@@ -80,7 +80,7 @@ type TPrivate struct {
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
 	Keys   string             `bson:"keys"`   //私钥内容
 	Idx    uint32             `bson:"idx"`    //索引
-	Time   int64              `json:"time"`   //创建时间
+	Time   int64              `bson:"time"`   //创建时间
 	Desc   string             `bson:"desc"`   //描述
 }
 
@@ -110,7 +110,7 @@ func (p *TPrivate) New(db IDbImp, desc string, pass ...string) (*TPrivate, error
 
 //pw 根据加密方式暂时解密生成私钥对象
 func (p *TPrivate) ToPrivate(pass ...string) (*xginx.PrivateKey, error) {
-	//必须有密码
+	//如果有密码
 	if p.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
 		return nil, errors.New("miss keys pass")
 	}

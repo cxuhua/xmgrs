@@ -26,6 +26,9 @@ func NonceStr(n ...int) string {
 		l = n[0]
 	}
 	v := make([]byte, l)
-	rand.Read(v)
+	_, err := rand.Read(v)
+	if err != nil {
+		panic(err)
+	}
 	return xginx.B58Encode(v, xginx.BitcoinAlphabet)
 }
