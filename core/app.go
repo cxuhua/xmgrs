@@ -10,8 +10,6 @@ import (
 
 	"github.com/cxuhua/xginx"
 
-	"github.com/cxuhua/xmgrs/util"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/gin-gonic/gin"
@@ -54,7 +52,7 @@ var (
 	dbonce   = sync.Once{}
 	rediscli *redis.Client
 	mongocli *mongo.Client
-	cipher   = util.NewAESCipher([]byte(TokenPassword))
+	cipher   = xginx.NewAESCipher([]byte(TokenPassword))
 )
 
 //两个id是否相等
@@ -104,7 +102,7 @@ func (app *App) GenToken() string {
 //加密token
 func (app *App) EncryptToken(token string) string {
 	tk := fmt.Sprintf(TokenFormat, token)
-	ck, err := util.AesEncrypt(cipher, []byte(tk))
+	ck, err := xginx.AesEncrypt(cipher, []byte(tk))
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +115,7 @@ func (app *App) DecryptToken(cks string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tk, err := util.AesDecrypt(cipher, ck)
+	tk, err := xginx.AesDecrypt(cipher, ck)
 	if err != nil {
 		return "", err
 	}
