@@ -84,7 +84,7 @@ func (st *DbSignListener) GetKeep() xginx.Address {
 	return accs[0].GetAddress()
 }
 
-//获取签名信息
+//获取签名信息,保存需要签名的信息
 func (st *DbSignListener) SignTx(singer xginx.ISigner, pass ...string) error {
 	addr := singer.GetAddress()
 	//获取对应的账号
