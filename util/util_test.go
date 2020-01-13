@@ -6,6 +6,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/cxuhua/xginx"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -34,13 +36,13 @@ func TestBigInt(t *testing.T) {
 
 func TestAes(t *testing.T) {
 	key := "jzxc972198hasdhsad^^027302173102"
-	block := NewAESCipher([]byte(key))
+	block := xginx.NewAESCipher([]byte(key))
 	s := "skdfjslnxvc97934734"
-	db, err := AesEncrypt(block, []byte(s))
+	db, err := xginx.AesEncrypt(block, []byte(s))
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := AesDecrypt(block, db)
+	d, err := xginx.AesDecrypt(block, db)
 	if err != nil {
 		t.Fatal(err)
 	}
