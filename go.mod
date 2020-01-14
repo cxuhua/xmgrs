@@ -8,6 +8,7 @@ require (
 	github.com/DataDog/zstd v1.4.4 // indirect
 	github.com/cxuhua/xginx v0.0.0-00010101000000-000000000000
 	github.com/gin-gonic/gin v1.5.0
+	github.com/go-playground/form/v4 v4.1.1
 	github.com/go-redis/redis/v7 v7.0.0-beta.5
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/json-iterator/go v1.1.7

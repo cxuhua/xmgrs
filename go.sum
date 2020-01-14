@@ -17,6 +17,9 @@ github.com/go-ego/cedar v0.0.0-20190212113122-dfcef7f31b50 h1:4bxnAg3Tkb38PwhCde
 github.com/go-ego/cedar v0.0.0-20190212113122-dfcef7f31b50/go.mod h1:TMuo5n9ZbmInm6IKEHqoCsW0EDYufNXKUQ/rqoZpPZE=
 github.com/go-ego/gse v0.0.0-20190311184715-3be0521c859d h1:IWssXKgZnNdnvyjRrDFlbxRklWRVFdoPdKAOt++eVq4=
 github.com/go-ego/gse v0.0.0-20190311184715-3be0521c859d/go.mod h1:ZoH2TXLlFH5PpLqB4rI7LLLiyj+1xUTWDdgDCMEOZVU=
+github.com/go-playground/assert/v2 v2.0.1/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
+github.com/go-playground/form/v4 v4.1.1 h1:1T9lGt3WRHuDwT5uwx7RYQZfxVwWZhF0DC1ovKyNnWY=
+github.com/go-playground/form/v4 v4.1.1/go.mod h1:q1a2BY+AQUUzhl6xA/6hBetay6dEIhMHjgvJiGo6K7U=
 github.com/go-playground/locales v0.12.1 h1:2FITxuFt/xuCNP1Acdhv62OzaCiviiE4kotfhkmOqEc=
 github.com/go-playground/locales v0.12.1/go.mod h1:IUMDtCfWo/w/mtMfIE/IG2K+Ey3ygWanZIBtBW0W2TM=
 github.com/go-playground/universal-translator v0.16.0 h1:X++omBR/4cE2MNg91AoC3rmGrCjJ8eAeUP/K/EKx4DM=

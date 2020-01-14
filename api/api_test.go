@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-playground/form/v4"
+
 	jsoniter "github.com/json-iterator/go"
 
 	"github.com/cxuhua/xmgrs/core"
@@ -139,10 +141,18 @@ func (st *ApiTestSuite) LoginB() error {
 		st.Get("/v1/quit/login")
 		st.token = ""
 	}
-	v := url.Values{}
-	v.Set("mobile", st.B)
-	v.Set("pass", "xh0714")
-
+	args := struct {
+		Mobile string `form:"mobile" binding:"required"`
+		Pass   string `form:"pass" binding:"required"`
+	}{
+		Mobile: st.B,
+		Pass:   "xh0714",
+	}
+	enc := form.NewEncoder()
+	v, err := enc.Encode(&args)
+	if err != nil {
+		return err
+	}
 	any, err := st.Post("/v1/login", v)
 	if err != nil {
 		return err
@@ -161,10 +171,18 @@ func (st *ApiTestSuite) LoginA() error {
 		st.Get("/v1/quit/login")
 		st.token = ""
 	}
-	v := url.Values{}
-	v.Set("mobile", st.A)
-	v.Set("pass", "xh0714")
-
+	args := struct {
+		Mobile string `form:"mobile" binding:"required"`
+		Pass   string `form:"pass" binding:"required"`
+	}{
+		Mobile: st.A,
+		Pass:   "xh0714",
+	}
+	enc := form.NewEncoder()
+	v, err := enc.Encode(&args)
+	if err != nil {
+		return err
+	}
 	any, err := st.Post("/v1/login", v)
 	if err != nil {
 		return err
