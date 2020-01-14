@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//账号证明信息，证明是否有此账号的控制权
+//账号证明信息，证明系统是否有此账号的控制权
 func accountProveApi(c *gin.Context) {
 	args := struct {
 		Addr xginx.Address `form:"addr"` //账号地址
@@ -30,7 +30,7 @@ func accountProveApi(c *gin.Context) {
 		Addr  xginx.Address `json:"addr"`  //输入的地址
 		Msg   string        `json:"msg"`   //输入的随机信息
 		Nonce string        `json:"nonce"` //服务器端随机字符串，防止接口被利用
-		Acc   string        `json:"acc"`   //b58账户账号信息
+		Acc   string        `json:"acc"`   //b58编码账户账号信息
 		Sigs  []string      `json:"sigs"`  //b58编码签名信息
 	}
 	//随机生成32字节数据用来和输入消息拼合在一起签名
@@ -48,6 +48,7 @@ func accountProveApi(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		//记载私钥
 		acc := sac.ToAccount(db, true)
 		str, err := acc.Dump(false)
 		if err != nil {
@@ -279,15 +280,16 @@ func listUserAccountsApi(c *gin.Context) {
 //注册
 func registerApi(c *gin.Context) {
 	args := struct {
-		Mobile string `form:"mobile"`
-		Pass   string `form:"pass"`
-		Code   string `form:"code"` //手机验证码
+		Mobile   string `form:"mobile"` //手机号
+		UserPass string `form:"upass"`  //用户登陆密码
+		KeyPass  string `form:"kpass"`  //密钥加密密码
+		Code     string `form:"code"`   //手机验证码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
-	if args.Mobile == "" || args.Pass == "" {
+	if args.Mobile == "" || args.UserPass == "" {
 		c.JSON(http.StatusOK, NewModel(101, "mobile or pass args error"))
 		return
 	}
@@ -303,7 +305,7 @@ func registerApi(c *gin.Context) {
 			rv.Code = 103
 			return errors.New("mobile exists")
 		}
-		user = core.NewUser(args.Mobile, []byte(args.Pass))
+		user = core.NewUser(args.Mobile, args.UserPass, args.KeyPass)
 		rv.Code = 104
 		return sdb.InsertUser(user)
 	})

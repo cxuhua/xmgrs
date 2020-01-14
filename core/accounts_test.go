@@ -21,7 +21,7 @@ type AccountTestSuite struct {
 
 func (st *AccountTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
-	user := NewUser("17716858036", []byte("xh0714"))
+	user := NewUser("17716858036", "xh0714")
 	err := st.db.InsertUser(user)
 	st.Assert().NoError(err)
 	st.user = user

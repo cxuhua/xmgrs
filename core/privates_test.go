@@ -39,7 +39,7 @@ func TestNewPrivate(t *testing.T) {
 		if err == nil {
 			db.DeleteUser(user.Id)
 		}
-		user = NewUser("17716858036", []byte("xh0714"), "1111")
+		user = NewUser("17716858036", "xh0714", "1111")
 		err = db.InsertUser(user)
 		if err != nil {
 			return err

@@ -25,7 +25,7 @@ func (st *TxsTestSuite) SetupSuite() {
 		st.db.DeleteUser(uv.Id)
 	}
 	//创建测试账号
-	user := NewUser("17716858036", []byte("xh0714"))
+	user := NewUser("17716858036", "xh0714")
 	err := st.db.InsertUser(user)
 	st.Require().NoError(err)
 	st.user = user

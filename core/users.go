@@ -18,21 +18,24 @@ type TUser struct {
 	Mobile string             `bson:"mobile"` //手机号
 	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
 	Keys   string             `bson:"keys"`   //确定性key b58编码
+	Kid    string             `bson:"kid"`    //用户私钥id
 	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
 }
 
-func NewUser(mobile string, lpass []byte, kpass ...string) *TUser {
+func NewUser(mobile string, upass string, kpass ...string) *TUser {
 	u := &TUser{}
 	u.Id = primitive.NewObjectID()
 	u.Mobile = mobile
-	keys, err := NewDeterKey().Dump(kpass...)
+	ndk := NewDeterKey()
+	keys, err := ndk.Dump(kpass...)
 	if err != nil {
 		panic(err)
 	}
 	u.Keys = keys
+	u.Kid = ndk.GetId()
 	u.Idx = 0
-	u.Pass = xginx.Hash256From(lpass)
+	u.Pass = xginx.Hash256From([]byte(upass))
 	return u
 }
 
