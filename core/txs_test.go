@@ -44,6 +44,12 @@ func (st *TxsTestSuite) SetupTest() {
 	err = st.db.InsertAccount(acc)
 	st.Require().NoError(err)
 	st.acc = acc
+	num, err := st.db.GetPrivateRefs(p1.Id)
+	st.Require().NoError(err)
+	st.Require().Equal(num, 1, "ref num error")
+	num, err = st.db.GetPrivateRefs(p2.Id)
+	st.Require().NoError(err)
+	st.Require().Equal(num, 1, "ref num error")
 }
 
 //创建新交易测试

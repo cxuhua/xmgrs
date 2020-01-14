@@ -146,8 +146,16 @@ func (ctx *dbimp) ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error) {
 }
 
 func (ctx *dbimp) DeletePrivate(id string) error {
+	//没有引用账户才能删除
+	num, err := ctx.GetPrivateRefs(id)
+	if err != nil {
+		return err
+	}
+	if num > 0 {
+		return errors.New("has refs acc,can't delete")
+	}
 	col := ctx.table(TPrivatesName)
-	_, err := col.DeleteOne(ctx, bson.M{"_id": id})
+	_, err = col.DeleteOne(ctx, bson.M{"_id": id})
 	return err
 }
 
@@ -160,6 +168,12 @@ func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
 		return nil, err
 	}
 	return v, nil
+}
+
+func (ctx *dbimp) GetPrivateRefs(id string) (int, error) {
+	col := ctx.table(TAccountName)
+	num, err := col.CountDocuments(ctx, bson.M{"kid": id})
+	return int(num), err
 }
 
 func (ctx *dbimp) IncDeterIdx(tbl string, id interface{}) error {

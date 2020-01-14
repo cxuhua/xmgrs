@@ -25,18 +25,18 @@ type TUser struct {
 }
 
 func NewUser(mobile string, upass string, kpass ...string) *TUser {
+	ndk := NewDeterKey()
 	u := &TUser{}
 	u.Id = primitive.NewObjectID()
 	u.Mobile = mobile
-	ndk := NewDeterKey()
-	keys, err := ndk.Dump(kpass...)
-	if err != nil {
-		panic(err)
-	}
 	if len(kpass) > 0 && kpass[0] != "" {
 		u.Cipher = CipherTypeAes
 	} else {
 		u.Cipher = CipherTypeNone
+	}
+	keys, err := ndk.Dump(kpass...)
+	if err != nil {
+		panic(err)
 	}
 	u.Keys = keys
 	u.Kid = ndk.GetId()

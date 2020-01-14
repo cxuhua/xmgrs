@@ -30,6 +30,8 @@ type IDbImp interface {
 	GetUserInfoWithMobile(mobile string) (*TUser, error)
 	//添加一个私钥
 	InsertPrivate(obj *TPrivate) error
+	//获取私钥id引用到的账户数量
+	GetPrivateRefs(id string) (int, error)
 	//删除一个私钥(危险)
 	DeletePrivate(id string) error
 	//获取私钥信息
