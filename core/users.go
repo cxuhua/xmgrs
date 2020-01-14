@@ -136,6 +136,28 @@ func (ctx *dbimp) GetUserInfo(id interface{}) (*TUser, error) {
 	return v, nil
 }
 
+//修改主私钥密码，修改派生密码
+func (ctx *dbimp) SetUserKeyPass(uid primitive.ObjectID, old string, new string) error {
+	if !ctx.IsTx() {
+		return errors.New("use tx")
+	}
+	user, err := ctx.GetUserInfo(uid)
+	if err != nil {
+		return err
+	}
+	dk, err := user.GetDeterKey(old)
+	if err != nil {
+		return err
+	}
+	keys, err := dk.Dump(new)
+	if err != nil {
+		return err
+	}
+	col := ctx.table(TUsersName)
+	_, err = col.UpdateOne(ctx, bson.M{"_id": user.Id}, bson.M{"$set": bson.M{"keys": keys}})
+	return err
+}
+
 //删除用户
 func (ctx *dbimp) DeleteUser(id interface{}) error {
 	if !ctx.IsTx() {

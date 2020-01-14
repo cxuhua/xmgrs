@@ -57,11 +57,21 @@ func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
-	dk, err := user.GetDeterKey(pass...)
+	//如果是两个密码，第一个为主私钥密码, 第二个新私钥密码
+	upass := []string{}
+	kpass := []string{}
+	if len(pass) == 2 {
+		upass = []string{pass[0]}
+		kpass = []string{pass[1]}
+	} else if len(pass) == 1 {
+		upass = []string{pass[0]}
+		kpass = []string{pass[0]}
+	}
+	dk, err := user.GetDeterKey(upass...)
 	if err != nil {
 		return nil, err
 	}
-	ptr := NewPrivate(user.Id, user.Idx, dk, desc, pass...)
+	ptr := NewPrivate(user.Id, user.Idx, dk, desc, kpass...)
 	err = db.InsertPrivate(ptr)
 	if err != nil {
 		return nil, err
@@ -125,6 +135,30 @@ func (p *TPrivate) ToPrivate(pass ...string) (*xginx.PrivateKey, error) {
 	return dk.GetPrivateKey()
 }
 
+func (ctx *dbimp) SetPrivateKeyPass(uid primitive.ObjectID, pid string, old string, new string) error {
+	if !ctx.IsTx() {
+		return errors.New("use tx")
+	}
+	pri, err := ctx.GetPrivate(pid)
+	if err != nil {
+		return err
+	}
+	if !ObjectIDEqual(pri.UserId, uid) {
+		return errors.New("can't update key pass")
+	}
+	dk, err := pri.GetDeter(old)
+	if err != nil {
+		return err
+	}
+	keys, err := dk.Dump(new)
+	if err != nil {
+		return err
+	}
+	col := ctx.table(TPrivatesName)
+	_, err = col.UpdateOne(ctx, bson.M{"_id": pri.Id, "uid": uid}, bson.M{"$set": bson.M{"keys": keys}})
+	return err
+}
+
 //获取用户的私钥
 func (ctx *dbimp) ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error) {
 	col := ctx.table(TPrivatesName)
@@ -157,6 +191,16 @@ func (ctx *dbimp) DeletePrivate(id string) error {
 	col := ctx.table(TPrivatesName)
 	_, err = col.DeleteOne(ctx, bson.M{"_id": id})
 	return err
+}
+
+func (ctx *dbimp) GetUserPrivate(id string, uid primitive.ObjectID) (*TPrivate, error) {
+	col := ctx.table(TPrivatesName)
+	v := &TPrivate{}
+	err := col.FindOne(ctx, bson.M{"_id": id, "uid": uid}).Decode(v)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 //获取私钥信息

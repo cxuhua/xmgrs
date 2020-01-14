@@ -24,7 +24,8 @@ func (av AddrValue) String() string {
 	return fmt.Sprintf("%s->%d", av.Addr, av.Value)
 }
 
-func NewAddrValue(s string) (AddrValue, error) {
+//解析addr->amount格式
+func ParseAddrValue(s string) (AddrValue, error) {
 	av := AddrValue{}
 	v := strings.Split(s, "->")
 	if len(v) != 2 {
@@ -38,6 +39,10 @@ func NewAddrValue(s string) (AddrValue, error) {
 		return av, errors.New("amount range error")
 	}
 	av.Addr = xginx.Address(v[0])
+	err = av.Addr.Check()
+	if err != nil {
+		return av, err
+	}
 	av.Value = amt
 	return av, nil
 }
@@ -195,10 +200,10 @@ func submitTxApi(c *gin.Context) {
 //创建交易
 func createTxApi(c *gin.Context) {
 	args := struct {
-		Dst  []string     `form:"dst" binding:"required,gte=0"` //addr->amount 向addr转amount个
-		Fee  xginx.Amount `form:"fee" binding:"gte=0"`          //交易费
-		Desc string       `form:"desc"`                         //描述
-		LT   uint32       `form:"lt"`                           //locktime
+		Dst  []string     `form:"dst" binding:"gt=0"`  //addr->amount 向addr转amount个
+		Fee  xginx.Amount `form:"fee" binding:"gte=0"` //交易费
+		Desc string       `form:"desc"`                //描述
+		LT   uint32       `form:"lt"`                  //locktime
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -216,7 +221,7 @@ func createTxApi(c *gin.Context) {
 		lis := core.NewSignListener(db, user)
 		mi := bi.NewTrans(lis)
 		for _, dst := range args.Dst {
-			av, err := NewAddrValue(dst)
+			av, err := ParseAddrValue(dst)
 			if err != nil {
 				return err
 			}
@@ -314,8 +319,8 @@ func createAccountApi(c *gin.Context) {
 //创建一个私钥
 func createUserPrivateApi(c *gin.Context) {
 	args := struct {
-		Desc string `form:"desc"` //私钥描述
-		Pass string `form:"pass"` //私钥密码
+		Desc string   `form:"desc"` //私钥描述
+		Pass []string `form:"pass"` //私钥密码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -333,17 +338,13 @@ func createUserPrivateApi(c *gin.Context) {
 		Code int  `json:"code"`
 		Item item `json:"item"`
 	}
-	pass := []string{}
-	if args.Pass != "" {
-		pass = []string{args.Pass}
-	}
 	m := result{}
 	err := app.UseTx(func(db core.IDbImp) error {
 		user, err := db.GetUserInfo(uid)
 		if err != nil {
 			return err
 		}
-		pri, err := user.NewPrivate(db, args.Desc, pass...)
+		pri, err := user.NewPrivate(db, args.Desc, args.Pass...)
 		if err != nil {
 			return err
 		}

@@ -19,7 +19,7 @@ import (
 
 type Model struct {
 	Code  int    `json:"code"`
-	Error string `json:"error"`
+	Error string `json:"error,omitempty"`
 }
 
 // 创建错误信息
@@ -50,13 +50,13 @@ func IsAddress(fl validator.FieldLevel) bool {
 //字段是否是hash160 hex字符串
 func HexHash160(fl validator.FieldLevel) bool {
 	v, err := hex.DecodeString(fl.Field().String())
-	return err == nil && len(v) == 20
+	return err == nil && len(v) == len(xginx.HASH160{})
 }
 
 //字段是否是hash256 hex字符串
 func HexHash256(fl validator.FieldLevel) bool {
 	v, err := hex.DecodeString(fl.Field().String())
-	return err == nil && len(v) == 32
+	return err == nil && len(v) == len(xginx.HASH256{})
 }
 
 //获取默认gin引擎
@@ -67,10 +67,9 @@ func InitEngine(ctx context.Context) *gin.Engine {
 		v.RegisterValidation("HexHash160", HexHash160)
 		v.RegisterValidation("IsAddress", IsAddress)
 	}
-
+	//
 	m := gin.New()
 	m.Use(gin.Logger(), gin.Recovery())
-
 	v1 := m.Group("/v1")
 	v1.Use(core.AppHandler(ctx))
 	ApiV1Entry(v1)

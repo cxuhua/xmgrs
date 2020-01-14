@@ -28,6 +28,10 @@ type IDbImp interface {
 	DeleteUser(id interface{}) error
 	//根据手机号获取用户信息
 	GetUserInfoWithMobile(mobile string) (*TUser, error)
+	//修改用户主私钥密码
+	SetUserKeyPass(uid primitive.ObjectID, old string, new string) error
+	//修改用户私钥密码
+	SetPrivateKeyPass(uid primitive.ObjectID, pid string, old string, new string) error
 	//添加一个私钥
 	InsertPrivate(obj *TPrivate) error
 	//获取私钥id引用到的账户数量
@@ -36,6 +40,8 @@ type IDbImp interface {
 	DeletePrivate(id string) error
 	//获取私钥信息
 	GetPrivate(id string) (*TPrivate, error)
+	//获取用户的私钥
+	GetUserPrivate(id string, uid primitive.ObjectID) (*TPrivate, error)
 	//添加一个账号
 	InsertAccount(obj *TAccount) error
 	//获取账户信息

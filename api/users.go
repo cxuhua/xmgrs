@@ -84,7 +84,8 @@ func quitLoginApi(c *gin.Context) {
 //签名一个交易
 func signTxApi(c *gin.Context) {
 	args := struct {
-		Id string `form:"id" binding:"HexHash256"` //交易id hex格式
+		Id   string `form:"id" binding:"HexHash256"` //交易id hex格式
+		Pass string `form:"pass"`                    //私钥密码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -111,7 +112,7 @@ func signTxApi(c *gin.Context) {
 			if sig.IsSign {
 				continue
 			}
-			err := sig.Sign(db)
+			err := sig.Sign(db, args.Pass)
 			if err != nil {
 				return err
 			}
@@ -280,7 +281,7 @@ func registerApi(c *gin.Context) {
 	args := struct {
 		Mobile   string `form:"mobile" binding:"required"` //手机号
 		UserPass string `form:"upass" binding:"required"`  //用户登陆密码
-		KeyPass  string `form:"kpass"`                     //密钥加密密码
+		KeyPass  string `form:"kpass"`                     //私钥加密密码
 		Code     string `form:"code" binding:"required"`   //手机验证码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {

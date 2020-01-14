@@ -22,7 +22,7 @@ func RemoveRepeat(vs []string) []string {
 //生成随机字符串
 func NonceStr(n ...int) string {
 	l := 8
-	if len(n) > 0 {
+	if len(n) > 0 && n[0] > 0 {
 		l = n[0]
 	}
 	v := make([]byte, l)
