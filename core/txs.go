@@ -207,12 +207,14 @@ func (ss TxSigs) IsSign() bool {
 }
 
 //交易状态
+type TTxState int
+
 const (
-	TTxStateNew    = iota //新交易
-	TTxStateSign          //已签名
-	TTxStatePool          //进入交易池
-	TTxStateBlock         //进入区块
-	TTxStateCancel        //作废
+	TTxStateNew    = 0 //新交易
+	TTxStateSign   = 1 //已签名
+	TTxStatePool   = 2 //进入交易池
+	TTxStateBlock  = 3 //进入区块
+	TTxStateCancel = 4 //作废
 )
 
 //临时交易信息
@@ -225,7 +227,7 @@ type TTx struct {
 	LockTime uint32             `bson:"lt"`
 	Time     int64              `bson:"time"` //创建时间
 	Desc     string             `bson:"desc"`
-	State    int                `bson:"state"` //TTxState*
+	State    TTxState           `bson:"state"` //TTxState*
 }
 
 //创建待签名对象
@@ -294,7 +296,7 @@ func (st *setsigner) SignTx(singer xginx.ISigner, pass ...string) error {
 }
 
 //设置交易状态
-func (stx *TTx) SetTxState(db IDbImp, state int) error {
+func (stx *TTx) SetTxState(db IDbImp, state TTxState) error {
 	return db.SetTxState(stx.Id, state)
 }
 
@@ -476,7 +478,7 @@ func (ctx *dbimp) InsertSigs(sigs ...*TSigs) error {
 }
 
 //设置交易状态
-func (ctx *dbimp) SetTxState(id []byte, state int) error {
+func (ctx *dbimp) SetTxState(id []byte, state TTxState) error {
 	col := ctx.table(TTxName)
 	sr := col.FindOneAndUpdate(ctx,
 		bson.M{"_id": id},

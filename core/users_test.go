@@ -9,6 +9,7 @@ import (
 )
 
 func TestAddUsersWithKeyPassword(t *testing.T) {
+	kpass := "11223344"
 	//添加测试用户
 	app := InitApp(context.Background())
 	defer app.Close()
@@ -17,7 +18,7 @@ func TestAddUsersWithKeyPassword(t *testing.T) {
 		if err == nil {
 			db.DeleteUser(user.Id)
 		}
-		u := NewUser("17716858036", "xh0714", "11223344")
+		u := NewUser("17716858036", "xh0714", kpass)
 		err = db.InsertUser(u)
 		if err != nil {
 			return err
@@ -29,20 +30,16 @@ func TestAddUsersWithKeyPassword(t *testing.T) {
 		if !ObjectIDEqual(u.Id, u1.Id) {
 			return errors.New("find user error")
 		}
-		_, err = u.NewPrivate(db, "第一个私钥", "11223344")
+		_, err = u.NewPrivate(db, "第一个加密的私钥", kpass)
 		if err != nil {
 			return err
 		}
-		_, err = u.NewPrivate(db, "第二个私钥", "11223344")
+		_, err = u.NewPrivate(db, "第二个加密的私钥", kpass)
 		if err != nil {
 			return err
 		}
 		if u.Idx != 2 {
 			return errors.New("count error")
-		}
-		err = db.DeleteUser(u.Id)
-		if err != nil {
-			return err
 		}
 		return err
 	})

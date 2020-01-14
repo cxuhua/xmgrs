@@ -21,6 +21,9 @@ type AccountTestSuite struct {
 
 func (st *AccountTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
+	if user, err := st.db.GetUserInfoWithMobile("17716858036"); err == nil {
+		st.db.DeleteUser(user.Id)
+	}
 	user := NewUser("17716858036", "xh0714")
 	err := st.db.InsertUser(user)
 	st.Assert().NoError(err)
@@ -30,7 +33,7 @@ func (st *AccountTestSuite) SetupSuite() {
 func (st *AccountTestSuite) SetupTest() {
 	st.Assert().NotNil(st.user, "default user miss")
 	//创建 2-2证书
-	acc, err := st.user.SaveAccount(st.db, 2, 2, false)
+	acc, err := st.user.SaveAccount(st.db, 2, 2, false, "2-2账户描述", []string{})
 	st.Assert().NoError(err)
 	st.acc = acc
 }
@@ -53,7 +56,7 @@ func (st *AccountTestSuite) TearDownTest() {
 		st.Assert().NoError(err)
 	}
 	//删除账户
-	err := st.db.DeleteAccount(st.acc.Id)
+	err := st.db.DeleteAccount(st.acc.Id, st.user.Id)
 	st.Assert().NoError(err)
 }
 

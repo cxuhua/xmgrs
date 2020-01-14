@@ -64,7 +64,7 @@ func (st *ApiTestSuite) SetupSuite() {
 		}
 		st.au = a
 		//创建测试账号A
-		aa, err := a.SaveAccount(sdb, 1, 1, false)
+		aa, err := a.SaveAccount(sdb, 1, 1, false, "A账户描述", []string{})
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,7 @@ func (st *ApiTestSuite) SetupSuite() {
 		}
 		st.bu = b
 		//创建测试账号B
-		ab, err := b.SaveAccount(sdb, 1, 1, false)
+		ab, err := b.SaveAccount(sdb, 1, 1, false, "B账户描述", []string{})
 		if err != nil {
 			return err
 		}

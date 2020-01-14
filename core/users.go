@@ -18,6 +18,7 @@ type TUser struct {
 	Mobile string             `bson:"mobile"` //手机号
 	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
 	Keys   string             `bson:"keys"`   //确定性key b58编码
+	Cipher CipherType         `bson:"cipher"` //key加密方式
 	Kid    string             `bson:"kid"`    //用户私钥id
 	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
@@ -32,6 +33,11 @@ func NewUser(mobile string, upass string, kpass ...string) *TUser {
 	if err != nil {
 		panic(err)
 	}
+	if len(kpass) > 0 && kpass[0] != "" {
+		u.Cipher = CipherTypeAes
+	} else {
+		u.Cipher = CipherTypeNone
+	}
 	u.Keys = keys
 	u.Kid = ndk.GetId()
 	u.Idx = 0
@@ -40,6 +46,9 @@ func NewUser(mobile string, upass string, kpass ...string) *TUser {
 }
 
 func (u *TUser) GetDeterKey(pass ...string) (*DeterKey, error) {
+	if u.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
+		return nil, errors.New("encrypt keys miss pass")
+	}
 	return LoadDeterKey(u.Keys, pass...)
 }
 
@@ -141,7 +150,11 @@ func (ctx *dbimp) DeleteUser(id interface{}) error {
 	}
 	//删除用户创建的账号
 	col = ctx.table(TAccountName)
-	_, err = col.DeleteMany(ctx, bson.M{"uid": uid})
+	_, err = col.UpdateMany(ctx, bson.M{"uid": uid}, bson.M{"$pull": bson.M{"uid": uid}})
+	if err != nil {
+		return err
+	}
+	_, err = col.DeleteMany(ctx, bson.M{"uid": bson.M{"$size": 0}})
 	if err != nil {
 		return err
 	}

@@ -38,8 +38,8 @@ type IDbImp interface {
 	InsertAccount(obj *TAccount) error
 	//获取账户信息
 	GetAccount(id xginx.Address) (*TAccount, error)
-	//删除私钥(危险)
-	DeleteAccount(id xginx.Address) error
+	//删除用户私钥
+	DeleteAccount(id xginx.Address, uid primitive.ObjectID) error
 	//获取用户的私钥
 	ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error)
 	//获取用户相关的账号
@@ -47,7 +47,7 @@ type IDbImp interface {
 	//获取交易信息
 	GetTx(id []byte) (*TTx, error)
 	//更新交易状态
-	SetTxState(id []byte, state int) error
+	SetTxState(id []byte, state TTxState) error
 	//删除交易信息
 	DeleteTx(id []byte) error
 	//插入交易信息

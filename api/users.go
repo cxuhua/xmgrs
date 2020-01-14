@@ -18,8 +18,8 @@ import (
 //账号证明信息，证明系统是否有此账号的控制权
 func accountProveApi(c *gin.Context) {
 	args := struct {
-		Addr xginx.Address `form:"addr"` //账号地址
-		Msg  string        `form:"msg"`  //签名随机信息
+		Addr xginx.Address `form:"addr" binding:"IsAddress"` //账号地址
+		Msg  string        `form:"msg" binding:"required"`   //签名随机信息
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -33,16 +33,14 @@ func accountProveApi(c *gin.Context) {
 		Acc   string        `json:"acc"`   //b58编码账户账号信息
 		Sigs  []string      `json:"sigs"`  //b58编码签名信息
 	}
-	//随机生成32字节数据用来和输入消息拼合在一起签名
-	nonce := util.NonceStr(32)
 	//添加一些防止被利用
 	app := core.GetApp(c)
 	res := result{
 		Addr:  args.Addr,
 		Msg:   args.Msg,
-		Nonce: nonce,
+		Nonce: util.NonceStr(32),
 	}
-	hv := xginx.Hash256([]byte(args.Msg + nonce))
+	hv := xginx.Hash256([]byte(args.Msg + res.Nonce))
 	err := app.UseDb(func(db core.IDbImp) error {
 		sac, err := db.GetAccount(args.Addr)
 		if err != nil {
@@ -86,7 +84,7 @@ func quitLoginApi(c *gin.Context) {
 //签名一个交易
 func signTxApi(c *gin.Context) {
 	args := struct {
-		Id string `form:"id"` //交易id hex格式
+		Id string `form:"id" binding:"HexHash256"` //交易id hex格式
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -137,14 +135,14 @@ func signTxApi(c *gin.Context) {
 }
 
 type TTxModel struct {
-	Id       string       `json:"id"`
-	Ver      uint32       `json:"ver"`
-	Ins      []TxInModel  `json:"ins"`
-	Outs     []TxOutModel `json:"outs"`
-	LockTime uint32       `json:"lt"`
-	Time     int64        `json:"time"`
-	Desc     string       `json:"desc"`
-	State    int          `json:"state"`
+	Id       string        `json:"id"`
+	Ver      uint32        `json:"ver"`
+	Ins      []TxInModel   `json:"ins"`
+	Outs     []TxOutModel  `json:"outs"`
+	LockTime uint32        `json:"lt"`
+	Time     int64         `json:"time"`
+	Desc     string        `json:"desc"`
+	State    core.TTxState `json:"state"`
 }
 
 func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
@@ -280,10 +278,10 @@ func listUserAccountsApi(c *gin.Context) {
 //注册
 func registerApi(c *gin.Context) {
 	args := struct {
-		Mobile   string `form:"mobile"` //手机号
-		UserPass string `form:"upass"`  //用户登陆密码
-		KeyPass  string `form:"kpass"`  //密钥加密密码
-		Code     string `form:"code"`   //手机验证码
+		Mobile   string `form:"mobile" binding:"required"` //手机号
+		UserPass string `form:"upass" binding:"required"`  //用户登陆密码
+		KeyPass  string `form:"kpass"`                     //密钥加密密码
+		Code     string `form:"code" binding:"required"`   //手机验证码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -293,8 +291,12 @@ func registerApi(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(101, "mobile or pass args error"))
 		return
 	}
+	if args.KeyPass != "" && args.KeyPass == args.UserPass {
+		c.JSON(http.StatusOK, NewModel(102, "login pass == key pass"))
+		return
+	}
 	if args.Code != "9527" {
-		c.JSON(http.StatusOK, NewModel(102, "code error"))
+		c.JSON(http.StatusOK, NewModel(103, "code error"))
 		return
 	}
 	rv := Model{}
@@ -302,12 +304,16 @@ func registerApi(c *gin.Context) {
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfoWithMobile(args.Mobile)
 		if err == nil {
-			rv.Code = 103
+			rv.Code = 104
 			return errors.New("mobile exists")
 		}
 		user = core.NewUser(args.Mobile, args.UserPass, args.KeyPass)
-		rv.Code = 104
-		return sdb.InsertUser(user)
+		err = sdb.InsertUser(user)
+		if err != nil {
+			rv.Code = 105
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(rv.Code, err))
@@ -318,8 +324,8 @@ func registerApi(c *gin.Context) {
 
 func loginApi(c *gin.Context) {
 	args := struct {
-		Mobile string `form:"mobile"`
-		Pass   string `form:"pass"`
+		Mobile string `form:"mobile" binding:"required"`
+		Pass   string `form:"pass" binding:"required"`
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))

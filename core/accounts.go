@@ -19,7 +19,7 @@ const (
 )
 
 //自动创建账号并保存
-func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAccount, error) {
+func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool, desc string, tags []string) (*TAccount, error) {
 	if !db.IsTx() {
 		return nil, errors.New("use tx core")
 	}
@@ -31,7 +31,7 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAcc
 		}
 		ids = append(ids, pri.Id)
 	}
-	acc, err := NewAccount(db, num, less, arb, ids)
+	acc, err := NewAccount(db, num, less, arb, ids, desc, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -43,12 +43,13 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool) (*TAcc
 }
 
 //创建账号并保存
-func (user *TUser) SaveAccount(db IDbImp, num uint8, less uint8, arb bool) (*TAccount, error) {
-	return SaveAccount(db, user, num, less, arb)
+func (user *TUser) SaveAccount(db IDbImp, num uint8, less uint8, arb bool, desc string, tags []string) (*TAccount, error) {
+	return SaveAccount(db, user, num, less, arb, desc, tags)
 }
 
 //创建账号从区块账号
-func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account) (*TAccount, error) {
+func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account, desc string, tags []string) (*TAccount, error) {
+	tags = util.RemoveRepeat(tags)
 	id, err := acc.GetAddress()
 	if err != nil {
 		return nil, err
@@ -61,13 +62,14 @@ func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account) (*TAccount, e
 	for _, pkh := range acc.GetPkhs() {
 		a.Kid = append(a.Kid, GetPrivateId(pkh))
 	}
-	a.Tags = []string{}
+	a.Tags = tags
+	a.Desc = desc
 	a.Time = time.Now().Unix()
 	return a, nil
 }
 
 //利用多个公钥id创建账号
-func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAccount, error) {
+func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc string, tags []string) (*TAccount, error) {
 	if num == 0 {
 		return nil, errors.New("num error")
 	}
@@ -75,14 +77,15 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAcc
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
-	uidm := map[primitive.ObjectID]bool{}
+	//获取公钥和相关的用户
+	imap := map[primitive.ObjectID]bool{}
 	pks := []xginx.PKBytes{}
 	for idx, id := range ids {
 		pri, err := db.GetPrivate(id)
 		if err != nil {
 			return nil, fmt.Errorf("pkh idx = %d private key miss", idx)
 		}
-		uidm[pri.UserId] = true
+		imap[pri.UserId] = true
 		pks = append(pks, pri.Pks)
 	}
 	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
@@ -90,10 +93,10 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string) (*TAcc
 		return nil, err
 	}
 	uids := []primitive.ObjectID{}
-	for uid, _ := range uidm {
+	for uid, _ := range imap {
 		uids = append(uids, uid)
 	}
-	return NewAccountFrom(uids, acc)
+	return NewAccountFrom(uids, acc, desc, tags)
 }
 
 //账户管理
@@ -181,11 +184,18 @@ func (ctx *dbimp) GetAccount(id xginx.Address) (*TAccount, error) {
 	return a, err
 }
 
-//删除账号
-func (ctx *dbimp) DeleteAccount(id xginx.Address) error {
+//删除用户账户
+func (ctx *dbimp) DeleteAccount(id xginx.Address, uid primitive.ObjectID) error {
 	col := ctx.table(TAccountName)
-	_, err := col.DeleteOne(ctx, bson.M{"_id": id})
-	return err
+	sr := col.FindOneAndUpdate(ctx, bson.M{"_id": id, "uid": uid}, bson.M{"$pull": bson.M{"uid": uid}})
+	if sr.Err() != nil {
+		return sr.Err()
+	}
+	sr = col.FindOneAndDelete(ctx, bson.M{"_id": id, "uid": bson.M{"$size": 0}})
+	if sr.Err() != nil {
+		return sr.Err()
+	}
+	return nil
 }
 
 //添加一个私钥

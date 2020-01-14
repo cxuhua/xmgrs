@@ -39,7 +39,7 @@ func (st *TxsTestSuite) SetupTest() {
 	p2, err := st.user.NewPrivate(st.db, "第二个私钥")
 	st.Require().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id})
+	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id}, "账户描述", []string{})
 	st.Require().NoError(err)
 	err = st.db.InsertAccount(acc)
 	st.Require().NoError(err)
@@ -104,7 +104,7 @@ func (st *TxsTestSuite) TearDownTest() {
 		st.Require().NoError(err)
 	}
 	//删除账户
-	err := st.db.DeleteAccount(st.acc.Id)
+	err := st.db.DeleteAccount(st.acc.Id, st.user.Id)
 	st.Require().NoError(err)
 }
 

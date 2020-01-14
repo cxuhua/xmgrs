@@ -114,7 +114,7 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 //获取区块链中的交易信息
 func getTxInfoApi(c *gin.Context) {
 	args := struct {
-		Id string `uri:"id"`
+		Id string `uri:"id" binding:"HexHash256"`
 	}{}
 	if err := c.ShouldBindUri(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -151,7 +151,7 @@ func getTxInfoApi(c *gin.Context) {
 //发布交易
 func submitTxApi(c *gin.Context) {
 	args := struct {
-		Id string `form:"id"` //交易id
+		Id string `form:"id" binding:"HexHash256"` //交易id
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -195,17 +195,13 @@ func submitTxApi(c *gin.Context) {
 //创建交易
 func createTxApi(c *gin.Context) {
 	args := struct {
-		Dst  []string     `form:"dst"`  //addr->amount 向addr转amount个
-		Fee  xginx.Amount `form:"fee"`  //交易费
-		Desc string       `form:"desc"` //描述
-		LT   uint32       `form:"lt"`   //locktime
+		Dst  []string     `form:"dst" binding:"required,gte=0"` //addr->amount 向addr转amount个
+		Fee  xginx.Amount `form:"fee" binding:"gte=0"`          //交易费
+		Desc string       `form:"desc"`                         //描述
+		LT   uint32       `form:"lt"`                           //locktime
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
-		return
-	}
-	if len(args.Dst) == 0 {
-		c.JSON(http.StatusOK, NewModel(101, "dst args miss"))
 		return
 	}
 	app := core.GetApp(c)
@@ -274,7 +270,7 @@ func createAccountApi(c *gin.Context) {
 		Tags []string      `json:"tags"` //标签，分组用
 		Num  uint8         `json:"num"`  //总的密钥数量
 		Less uint8         `json:"less"` //至少通过的签名数量
-		Arb  bool          `json:"arb"`  //是否仲裁
+		Arb  bool          `json:"arb"`  //是否启用仲裁
 		Kid  []string      `json:"kis"`  //相关的私钥
 		Desc string        `json:"desc"` //描述
 	}
@@ -289,14 +285,10 @@ func createAccountApi(c *gin.Context) {
 	res.Item.Kid = []string{}
 	app := core.GetApp(c)
 	err := app.UseTx(func(db core.IDbImp) error {
-		acc, err := core.NewAccount(db, args.Num, args.Less, args.Arb, args.Id)
+		acc, err := core.NewAccount(db, args.Num, args.Less, args.Arb, args.Id, args.Desc, args.Tags)
 		if err != nil {
 			return err
 		}
-		if len(args.Tags) > 0 {
-			acc.Tags = args.Tags
-		}
-		acc.Desc = args.Desc
 		err = db.InsertAccount(acc)
 		if err != nil {
 			return err
@@ -414,7 +406,7 @@ func listPrivatesApi(c *gin.Context) {
 //获取区块中的用户交易
 func listTxsApi(c *gin.Context) {
 	args := struct {
-		Addr xginx.Address `uri:"addr"`
+		Addr xginx.Address `uri:"addr" binding:"IsAddress"`
 	}{}
 	if err := c.ShouldBindUri(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
