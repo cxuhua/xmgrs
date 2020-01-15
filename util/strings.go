@@ -6,7 +6,7 @@ import (
 	"github.com/cxuhua/xginx"
 )
 
-//移除重复的字符串
+//RemoveRepeat 移除重复的字符串
 func RemoveRepeat(vs []string) []string {
 	ms := map[string]bool{}
 	for _, v := range vs {
@@ -19,7 +19,7 @@ func RemoveRepeat(vs []string) []string {
 	return vs
 }
 
-//生成随机字符串
+//NonceStr 生成随机字符串
 func NonceStr(n ...int) string {
 	l := 8
 	if len(n) > 0 && n[0] > 0 {

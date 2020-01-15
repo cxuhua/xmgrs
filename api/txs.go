@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//AddrValue 地址金额
 type AddrValue struct {
 	Addr  xginx.Address
 	Value xginx.Amount
@@ -24,7 +25,7 @@ func (av AddrValue) String() string {
 	return fmt.Sprintf("%s->%d", av.Addr, av.Value)
 }
 
-//解析addr->amount格式
+//ParseAddrValue 解析addr->amount格式
 func ParseAddrValue(s string) (AddrValue, error) {
 	av := AddrValue{}
 	v := strings.Split(s, "->")
@@ -47,17 +48,20 @@ func ParseAddrValue(s string) (AddrValue, error) {
 	return av, nil
 }
 
+//TxInModel 输出model
 type TxInModel struct {
 	Addr     xginx.Address `json:"addr"`  //coinbase地址是空的
 	Value    xginx.Amount  `json:"value"` //coinbasevalue是空的
 	Sequence uint32        `json:"sequence"`
 }
 
+//TxOutModel 输出model
 type TxOutModel struct {
 	Addr  xginx.Address `json:"addr"`
 	Value xginx.Amount  `json:"value"`
 }
 
+//TxModel 交易model
 type TxModel struct {
 	Ver      uint32       `json:"ver"`
 	Ins      []TxInModel  `json:"ins"` //为空是coinbase交易
@@ -68,6 +72,7 @@ type TxModel struct {
 	Pool     bool         `json:"pool"`    //是否来自交易池
 }
 
+//NewTxModel 创建model
 func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxModel {
 	m := TxModel{
 		Ver:      tx.Ver.ToUInt32(),
@@ -117,22 +122,22 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 }
 
 //获取区块链中的交易信息
-func getTxInfoApi(c *gin.Context) {
+func getTxInfoAPI(c *gin.Context) {
 	args := struct {
-		Id string `uri:"id" binding:"HexHash256"`
+		ID string `uri:"id" binding:"HexHash256"`
 	}{}
 	if err := c.ShouldBindUri(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
-	id := xginx.NewHASH256(args.Id)
+	id := xginx.NewHASH256(args.ID)
 	bi := xginx.GetBlockIndex()
 	txv, err := bi.LoadTxValue(id)
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(101, err))
 		return
 	}
-	blk, err := bi.LoadBlock(txv.BlkId)
+	blk, err := bi.LoadBlock(txv.BlkID)
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(102, err))
 		return
@@ -154,17 +159,17 @@ func getTxInfoApi(c *gin.Context) {
 }
 
 //发布交易
-func submitTxApi(c *gin.Context) {
+func submitTxAPI(c *gin.Context) {
 	args := struct {
-		Id string `form:"id" binding:"HexHash256"` //交易id
+		ID string `form:"id" binding:"HexHash256"` //交易id
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
-	id := xginx.NewHASH256(args.Id).Bytes()
+	id := xginx.NewHASH256(args.ID).Bytes()
 	app := core.GetApp(c)
-	uid := GetAppUserId(c)
+	uid := GetAppUserID(c)
 	bi := xginx.GetBlockIndex()
 	var tx *xginx.TX = nil
 	err := app.UseTx(func(db core.IDbImp) error {
@@ -172,7 +177,7 @@ func submitTxApi(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		if !core.ObjectIDEqual(ttx.UserId, uid) {
+		if !core.ObjectIDEqual(ttx.UserID, uid) {
 			return errors.New("not mine ttx")
 		}
 		tx, err = ttx.ToTx(db, bi)
@@ -198,7 +203,7 @@ func submitTxApi(c *gin.Context) {
 }
 
 //创建交易
-func createTxApi(c *gin.Context) {
+func createTxAPI(c *gin.Context) {
 	args := struct {
 		Dst  []string     `form:"dst" binding:"gt=0"`  //addr->amount 向addr转amount个
 		Fee  xginx.Amount `form:"fee" binding:"gte=0"` //交易费
@@ -210,7 +215,7 @@ func createTxApi(c *gin.Context) {
 		return
 	}
 	app := core.GetApp(c)
-	uid := GetAppUserId(c)
+	uid := GetAppUserID(c)
 	bi := xginx.GetBlockIndex()
 	var ttx *core.TTx = nil
 	err := app.UseTx(func(db core.IDbImp) error {
@@ -253,12 +258,12 @@ func createTxApi(c *gin.Context) {
 }
 
 //创建账号
-func createAccountApi(c *gin.Context) {
+func createAccountAPI(c *gin.Context) {
 	args := struct {
 		Num  uint8    `form:"num"`  //私钥数量
 		Less uint8    `form:"less"` //至少通过数量
 		Arb  bool     `form:"arb"`  //启用仲裁
-		Id   []string `form:"id"`   //为空将自动创建私钥
+		ID   []string `form:"id"`   //为空将自动创建私钥
 		Tags []string `form:"tags"` //标签
 		Desc string   `form:"desc"` //描述
 	}{}
@@ -267,11 +272,11 @@ func createAccountApi(c *gin.Context) {
 		return
 	}
 	//去除重复的数据
-	args.Id = util.RemoveRepeat(args.Id)
+	args.ID = util.RemoveRepeat(args.ID)
 	args.Tags = util.RemoveRepeat(args.Tags)
 	//
 	type item struct {
-		Id   xginx.Address `json:"id"`   //账号地址id
+		ID   xginx.Address `json:"id"`   //账号地址id
 		Tags []string      `json:"tags"` //标签，分组用
 		Num  uint8         `json:"num"`  //总的密钥数量
 		Less uint8         `json:"less"` //至少通过的签名数量
@@ -290,7 +295,7 @@ func createAccountApi(c *gin.Context) {
 	res.Item.Kid = []string{}
 	app := core.GetApp(c)
 	err := app.UseTx(func(db core.IDbImp) error {
-		acc, err := core.NewAccount(db, args.Num, args.Less, args.Arb, args.Id, args.Desc, args.Tags)
+		acc, err := core.NewAccount(db, args.Num, args.Less, args.Arb, args.ID, args.Desc, args.Tags)
 		if err != nil {
 			return err
 		}
@@ -299,7 +304,7 @@ func createAccountApi(c *gin.Context) {
 			return err
 		}
 		i := item{}
-		i.Id = acc.Id
+		i.ID = acc.ID
 		i.Tags = acc.Tags
 		i.Num = acc.Num
 		i.Less = acc.Less
@@ -317,7 +322,7 @@ func createAccountApi(c *gin.Context) {
 }
 
 //创建一个私钥
-func createUserPrivateApi(c *gin.Context) {
+func createUserPrivateAPI(c *gin.Context) {
 	args := struct {
 		Desc string   `form:"desc"` //私钥描述
 		Pass []string `form:"pass"` //私钥密码
@@ -327,9 +332,9 @@ func createUserPrivateApi(c *gin.Context) {
 		return
 	}
 	app := core.GetApp(c)
-	uid := GetAppUserId(c)
+	uid := GetAppUserID(c)
 	type item struct {
-		Id     string `json:"id"`
+		ID     string `json:"id"`
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
 		Time   int64  `json:"time"`
@@ -349,7 +354,7 @@ func createUserPrivateApi(c *gin.Context) {
 			return err
 		}
 		i := item{}
-		i.Id = pri.Id
+		i.ID = pri.ID
 		i.Desc = pri.Desc
 		i.Cipher = int(pri.Cipher)
 		i.Time = pri.Time
@@ -364,11 +369,11 @@ func createUserPrivateApi(c *gin.Context) {
 }
 
 //获取用户的私钥
-func listPrivatesApi(c *gin.Context) {
+func listPrivatesAPI(c *gin.Context) {
 	app := core.GetApp(c)
-	uid := GetAppUserId(c)
+	uid := GetAppUserID(c)
 	type item struct {
-		Id     string `json:"id"`
+		ID     string `json:"id"`
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
 		Time   int64  `json:"time"`
@@ -388,7 +393,7 @@ func listPrivatesApi(c *gin.Context) {
 		}
 		for _, v := range pris {
 			i := item{
-				Id:     v.Id,
+				ID:     v.ID,
 				Desc:   v.Desc,
 				Cipher: int(v.Cipher),
 				Time:   v.Time,
@@ -405,7 +410,7 @@ func listPrivatesApi(c *gin.Context) {
 }
 
 //获取区块中的用户交易
-func listTxsApi(c *gin.Context) {
+func listTxsAPI(c *gin.Context) {
 	args := struct {
 		Addr xginx.Address `uri:"addr" binding:"IsAddress"`
 	}{}
@@ -430,7 +435,7 @@ func listTxsApi(c *gin.Context) {
 	txp := bi.GetTxPool()
 	for _, v := range txs {
 		if v.IsPool() {
-			tx, err := txp.Get(v.TxId)
+			tx, err := txp.Get(v.TxID)
 			if err != nil {
 				c.JSON(http.StatusOK, NewModel(104, err))
 				return
@@ -438,12 +443,12 @@ func listTxsApi(c *gin.Context) {
 			item := NewTxModel(tx, nil, bi)
 			res.Items = append(res.Items, item)
 		} else {
-			txv, err := bi.LoadTxValue(v.TxId)
+			txv, err := bi.LoadTxValue(v.TxID)
 			if err != nil {
 				c.JSON(http.StatusOK, NewModel(102, err))
 				return
 			}
-			blk, err := bi.LoadBlock(txv.BlkId)
+			blk, err := bi.LoadBlock(txv.BlkID)
 			if err != nil {
 				c.JSON(http.StatusOK, NewModel(103, err))
 				return

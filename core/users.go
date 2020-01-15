@@ -8,13 +8,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+//用户表
 const (
 	TUsersName = "users"
 )
 
-//用户管理
+//TUser 用户管理
 type TUser struct {
-	Id     primitive.ObjectID `bson:"_id"`    //id
+	ID     primitive.ObjectID `bson:"_id"`    //id
 	Mobile string             `bson:"mobile"` //手机号
 	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
 	Keys   string             `bson:"keys"`   //确定性key b58编码
@@ -24,10 +25,11 @@ type TUser struct {
 	Token  string             `bson:"token"`  //登陆token
 }
 
+//NewUser 创建用户
 func NewUser(mobile string, upass string, kpass ...string) *TUser {
 	ndk := NewDeterKey()
 	u := &TUser{}
-	u.Id = primitive.NewObjectID()
+	u.ID = primitive.NewObjectID()
 	u.Mobile = mobile
 	if len(kpass) > 0 && kpass[0] != "" {
 		u.Cipher = CipherTypeAes
@@ -39,12 +41,13 @@ func NewUser(mobile string, upass string, kpass ...string) *TUser {
 		panic(err)
 	}
 	u.Keys = keys
-	u.Kid = ndk.GetId()
+	u.Kid = ndk.GetID()
 	u.Idx = 0
 	u.Pass = xginx.Hash256From([]byte(upass))
 	return u
 }
 
+//GetDeterKey 获取密钥
 func (u *TUser) GetDeterKey(pass ...string) (*DeterKey, error) {
 	if u.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
 		return nil, errors.New("encrypt keys miss pass")
@@ -52,23 +55,25 @@ func (u *TUser) GetDeterKey(pass ...string) (*DeterKey, error) {
 	return LoadDeterKey(u.Keys, pass...)
 }
 
+//CheckPass 检测登陆密码
 func (u *TUser) CheckPass(pass string) bool {
 	hv := xginx.Hash256From([]byte(pass))
 	return hv.Equal(u.Pass)
 }
 
+//ListTxs 获取用户相关的交易
 func (u *TUser) ListTxs(db IDbImp, sign bool) ([]*TTx, error) {
-	return db.ListUserTxs(u.Id, sign)
+	return db.ListUserTxs(u.ID, sign)
 }
 
-//获取用户相关的账号
+//ListAccounts 获取用户相关的账号
 func (u *TUser) ListAccounts(db IDbImp) ([]*TAccount, error) {
-	return db.ListAccounts(u.Id)
+	return db.ListAccounts(u.ID)
 }
 
-//获取用户余额
+//ListCoins 获取用户余额
 func (u *TUser) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
-	accs, err := db.ListAccounts(u.Id)
+	accs, err := db.ListAccounts(u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +159,7 @@ func (ctx *dbimp) SetUserKeyPass(uid primitive.ObjectID, old string, new string)
 		return err
 	}
 	col := ctx.table(TUsersName)
-	_, err = col.UpdateOne(ctx, bson.M{"_id": user.Id}, bson.M{"$set": bson.M{"keys": keys}})
+	_, err = col.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"keys": keys}})
 	return err
 }
 

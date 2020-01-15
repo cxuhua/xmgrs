@@ -37,7 +37,7 @@ func TestNewPrivate(t *testing.T) {
 	err := app.UseTx(func(db IDbImp) error {
 		user, err := db.GetUserInfoWithMobile("17716858036")
 		if err == nil {
-			db.DeleteUser(user.Id)
+			db.DeleteUser(user.ID)
 		}
 		user = NewUser("17716858036", "xh0714", "1111")
 		err = db.InsertUser(user)
@@ -48,14 +48,14 @@ func TestNewPrivate(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		pri, err := db.GetPrivate(dp.Id)
+		pri, err := db.GetPrivate(dp.ID)
 		if err != nil {
 			return err
 		}
 		if !pri.Pkh.Equal(dp.Pkh) {
 			return errors.New("pkh error")
 		}
-		err = db.DeleteUser(user.Id)
+		err = db.DeleteUser(user.ID)
 		if err != nil {
 			return err
 		}

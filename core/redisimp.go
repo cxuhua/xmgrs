@@ -8,31 +8,31 @@ import (
 	"github.com/go-redis/redis/v7"
 )
 
-//redis接口
+//IRedisImp redis接口
 type IRedisImp interface {
 	//保存用户id到redis
-	SetUserId(k string, id primitive.ObjectID, time time.Duration) error
+	SetUserID(k string, id primitive.ObjectID, time time.Duration) error
 	//从redis获取用户id
-	GetUserId(k string) (primitive.ObjectID, error)
+	GetUserID(k string) (primitive.ObjectID, error)
 	//删除token
-	DelUserId(k string) error
+	DelUserID(k string) error
 }
 
 type redisImp struct {
 	redv *redis.Conn
 }
 
-func (conn *redisImp) DelUserId(k string) error {
+func (conn *redisImp) DelUserID(k string) error {
 	return conn.redv.Del(k).Err()
 }
 
-//保存用户id
-func (conn *redisImp) SetUserId(k string, id primitive.ObjectID, time time.Duration) error {
+//SetUserId 保存用户id
+func (conn *redisImp) SetUserID(k string, id primitive.ObjectID, time time.Duration) error {
 	return conn.redv.Set(k, id.Hex(), time).Err()
 }
 
 //获取token
-func (conn *redisImp) GetUserId(k string) (primitive.ObjectID, error) {
+func (conn *redisImp) GetUserID(k string) (primitive.ObjectID, error) {
 	s := conn.redv.Get(k)
 	hs, err := s.Result()
 	if err != nil {
@@ -41,6 +41,7 @@ func (conn *redisImp) GetUserId(k string) (primitive.ObjectID, error) {
 	return primitive.ObjectIDFromHex(hs)
 }
 
+//NewRedisImp 创建缓存接口
 func NewRedisImp(redv *redis.Conn) IRedisImp {
 	return &redisImp{redv: redv}
 }

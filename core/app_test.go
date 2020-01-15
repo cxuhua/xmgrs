@@ -22,7 +22,7 @@ func TestToken(t *testing.T) {
 	tid := primitive.NewObjectID()
 	err := app.UseRedis(func(redv IRedisImp) error {
 		token := app.GenToken()
-		err := redv.SetUserId(token, tid, time.Second*1)
+		err := redv.SetUserID(token, tid, time.Second*1)
 		if err != nil {
 			panic(err)
 		}
@@ -35,7 +35,7 @@ func TestToken(t *testing.T) {
 		if token != dt {
 			t.Error("enc dec token error")
 		}
-		v1, err := redv.GetUserId(dt)
+		v1, err := redv.GetUserID(dt)
 		if err != nil {
 			panic(err)
 		}
@@ -43,7 +43,7 @@ func TestToken(t *testing.T) {
 			t.Error("value error")
 		}
 		time.Sleep(time.Second * 2)
-		v2, err := redv.GetUserId(dt)
+		v2, err := redv.GetUserID(dt)
 		if err == nil {
 			t.Error("expire set error", v2)
 		}

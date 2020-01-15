@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+//IDbImp 数据库接口定义
 type IDbImp interface {
 	IAppDbImp
 	IRedisImp
@@ -104,6 +105,7 @@ func (db *dbimp) IsTx() bool {
 	return db.isTx
 }
 
+//NewDbImp 新建一个数据库接口
 func NewDbImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,

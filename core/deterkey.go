@@ -13,13 +13,13 @@ import (
 	"github.com/cxuhua/xginx"
 )
 
-//确定性私钥地址
+//DeterKey 确定性私钥地址
 type DeterKey struct {
 	Root []byte `bson:"root"` //私钥内容
 	Key  []byte `bson:"key"`  //密钥编码
 }
 
-//加载key
+//LoadDeterKey 加载key
 func LoadDeterKey(s string, pass ...string) (*DeterKey, error) {
 	data, err := xginx.HashLoad(s, pass...)
 	if err != nil {
@@ -32,11 +32,13 @@ func LoadDeterKey(s string, pass ...string) (*DeterKey, error) {
 	return dk, nil
 }
 
-func (k DeterKey) GetId() string {
+//GetID 获取私钥id
+func (k DeterKey) GetID() string {
 	pkh := k.GetPks().Hash()
-	return GetPrivateId(pkh)
+	return GetPrivateID(pkh)
 }
 
+//GetPks 获取公钥内容
 func (k DeterKey) GetPks() xginx.PKBytes {
 	pri, err := k.GetPrivateKey()
 	if err != nil {
@@ -45,11 +47,12 @@ func (k DeterKey) GetPks() xginx.PKBytes {
 	return pri.PublicKey().GetPks()
 }
 
+//GetPrivateKey 获取私钥
 func (k DeterKey) GetPrivateKey() (*xginx.PrivateKey, error) {
 	return xginx.NewPrivateKeyWithBytes(k.Root)
 }
 
-//备份密钥
+//Dump 备份密钥
 func (k DeterKey) Dump(pass ...string) (string, error) {
 	data := append([]byte{}, k.Root...)
 	data = append(data, k.Key...)
@@ -60,7 +63,7 @@ func (k DeterKey) String() string {
 	return fmt.Sprintf("Root=%s,Key=%s", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key))
 }
 
-//派生一个密钥
+//New 派生一个密钥
 func (k *DeterKey) New(idx uint32) *DeterKey {
 	h := hmac.New(func() hash.Hash {
 		return sha512.New()
@@ -83,6 +86,7 @@ func (k *DeterKey) New(idx uint32) *DeterKey {
 	}
 }
 
+//NewDeterKey 创建一个确定性私钥
 func NewDeterKey() *DeterKey {
 	pri, err := xginx.NewPrivateKey()
 	if err != nil {

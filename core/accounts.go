@@ -14,11 +14,12 @@ import (
 	"github.com/cxuhua/xginx"
 )
 
+//账号表
 const (
 	TAccountName = "accounts"
 )
 
-//自动创建账号并保存
+//SaveAccount 自动创建账号并保存
 func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool, desc string, tags []string) (*TAccount, error) {
 	if !db.IsTx() {
 		return nil, errors.New("use tx core")
@@ -29,7 +30,7 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool, desc s
 		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, pri.Id)
+		ids = append(ids, pri.ID)
 	}
 	acc, err := NewAccount(db, num, less, arb, ids, desc, tags)
 	if err != nil {
@@ -42,25 +43,25 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool, desc s
 	return acc, nil
 }
 
-//创建账号并保存
+//SaveAccount 创建账号并保存
 func (user *TUser) SaveAccount(db IDbImp, num uint8, less uint8, arb bool, desc string, tags []string) (*TAccount, error) {
 	return SaveAccount(db, user, num, less, arb, desc, tags)
 }
 
-//创建账号从区块账号
+//NewAccountFrom 创建账号从区块账号
 func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account, desc string, tags []string) (*TAccount, error) {
 	tags = util.RemoveRepeat(tags)
 	id, err := acc.GetAddress()
 	if err != nil {
 		return nil, err
 	}
-	a := &TAccount{Id: id, UserId: uids}
+	a := &TAccount{ID: id, UserID: uids}
 	a.Num = acc.Num
 	a.Less = acc.Less
 	a.Arb = acc.Arb
 	a.Pks = acc.GetPks()
 	for _, pkh := range acc.GetPkhs() {
-		a.Kid = append(a.Kid, GetPrivateId(pkh))
+		a.Kid = append(a.Kid, GetPrivateID(pkh))
 	}
 	a.Tags = tags
 	a.Desc = desc
@@ -68,7 +69,7 @@ func NewAccountFrom(uids []primitive.ObjectID, acc *xginx.Account, desc string, 
 	return a, nil
 }
 
-//利用多个公钥id创建账号
+//NewAccount 利用多个公钥id创建账号
 func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc string, tags []string) (*TAccount, error) {
 	if num == 0 {
 		return nil, errors.New("num error")
@@ -85,7 +86,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 		if err != nil {
 			return nil, fmt.Errorf("pkh idx = %d private key miss", idx)
 		}
-		imap[pri.UserId] = true
+		imap[pri.UserID] = true
 		pks = append(pks, pri.Pks)
 	}
 	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
@@ -93,16 +94,16 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 		return nil, err
 	}
 	uids := []primitive.ObjectID{}
-	for uid, _ := range imap {
+	for uid := range imap {
 		uids = append(uids, uid)
 	}
 	return NewAccountFrom(uids, acc, desc, tags)
 }
 
-//账户管理
+//TAccount 账户管理
 type TAccount struct {
-	Id     xginx.Address        `bson:"_id"`  //账号地址id
-	UserId []primitive.ObjectID `bson:"uid"`  //所属的多个账户，当用多个私钥创建时，所属私钥的用户集合
+	ID     xginx.Address        `bson:"_id"`  //账号地址id
+	UserID []primitive.ObjectID `bson:"uid"`  //所属的多个账户，当用多个私钥创建时，所属私钥的用户集合
 	Tags   []string             `bson:"tags"` //标签，分组用
 	Num    uint8                `bson:"num"`  //总的密钥数量
 	Less   uint8                `bson:"less"` //至少通过的签名数量
@@ -113,7 +114,7 @@ type TAccount struct {
 	Desc   string               `bson:"desc"` //描述
 }
 
-//获取第几个私钥
+//GetPrivate 获取第几个私钥
 func (acc TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 	if idx < 0 || idx <= len(acc.Kid) {
 		return nil, errors.New("idx out bound")
@@ -121,7 +122,7 @@ func (acc TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 	return db.GetPrivate(acc.Kid[idx])
 }
 
-//pri是否加载私钥
+//ToAccount pri是否加载私钥
 func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) *xginx.Account {
 	aj := &xginx.Account{
 		Num:  acc.Num,
@@ -154,17 +155,19 @@ func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) *xginx.Accou
 	return aj
 }
 
+//GetAddress 获取地址
 func (acc TAccount) GetAddress() xginx.Address {
-	return acc.Id
+	return acc.ID
 }
 
+//GetPkh 获取公钥hash
 func (acc TAccount) GetPkh() (xginx.HASH160, error) {
 	return xginx.HashPks(acc.Num, acc.Less, acc.Arb, acc.Pks)
 }
 
-//获取账户金额
+//ListCoins 获取账户金额
 func (acc *TAccount) ListCoins(bi *xginx.BlockIndex) (*xginx.CoinsState, error) {
-	pkh, err := acc.Id.GetPkh()
+	pkh, err := acc.ID.GetPkh()
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +179,7 @@ func (acc *TAccount) ListCoins(bi *xginx.BlockIndex) (*xginx.CoinsState, error) 
 	return coins.State(spent), nil
 }
 
-//获取账户信息
+//GetAccount 获取账户信息
 func (ctx *dbimp) GetAccount(id xginx.Address) (*TAccount, error) {
 	col := ctx.table(TAccountName)
 	a := &TAccount{}
@@ -184,7 +187,7 @@ func (ctx *dbimp) GetAccount(id xginx.Address) (*TAccount, error) {
 	return a, err
 }
 
-//删除用户账户
+//DeleteAccount 删除用户账户
 func (ctx *dbimp) DeleteAccount(id xginx.Address, uid primitive.ObjectID) error {
 	col := ctx.table(TAccountName)
 	sr := col.FindOneAndUpdate(ctx, bson.M{"_id": id, "uid": uid}, bson.M{"$pull": bson.M{"uid": uid}})

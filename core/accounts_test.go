@@ -22,7 +22,7 @@ type AccountTestSuite struct {
 func (st *AccountTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
 	if user, err := st.db.GetUserInfoWithMobile("17716858036"); err == nil {
-		st.db.DeleteUser(user.Id)
+		st.db.DeleteUser(user.ID)
 	}
 	user := NewUser("17716858036", "xh0714")
 	err := st.db.InsertUser(user)
@@ -45,8 +45,8 @@ func (st *AccountTestSuite) TestListCoins() {
 	//获取账户金额
 	scs, err := st.acc.ListCoins(bi)
 	st.Assert().NoError(err)
-	st.Assert().Equal(scs.All.Balance(), 5000*xginx.COIN, "list account error")
-	st.Assert().Equal(scs.Coins.Balance(), 50*xginx.COIN, "list account error")
+	st.Assert().Equal(scs.All.Balance(), 5000*xginx.Coin, "list account error")
+	st.Assert().Equal(scs.Coins.Balance(), 50*xginx.Coin, "list account error")
 }
 
 func (st *AccountTestSuite) TearDownTest() {
@@ -56,12 +56,12 @@ func (st *AccountTestSuite) TearDownTest() {
 		st.Assert().NoError(err)
 	}
 	//删除账户
-	err := st.db.DeleteAccount(st.acc.Id, st.user.Id)
+	err := st.db.DeleteAccount(st.acc.ID, st.user.ID)
 	st.Assert().NoError(err)
 }
 
 func (st *AccountTestSuite) TearDownSuite() {
-	err := st.db.DeleteUser(st.user.Id)
+	err := st.db.DeleteUser(st.user.ID)
 	st.Assert().NoError(err)
 }
 
@@ -75,9 +75,8 @@ func TestAccounts(t *testing.T) {
 		suite.Run(t, st)
 		if t.Failed() {
 			return errors.New("TestAccounts test failed")
-		} else {
-			return nil
 		}
+		return nil
 	})
 	assert.NoError(t, err)
 }

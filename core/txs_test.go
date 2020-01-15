@@ -22,7 +22,7 @@ func (st *TxsTestSuite) SetupSuite() {
 	xginx.NewTestConfig()
 	//删除测试账号
 	if uv, err := st.db.GetUserInfoWithMobile("17716858036"); err == nil {
-		st.db.DeleteUser(uv.Id)
+		st.db.DeleteUser(uv.ID)
 	}
 	//创建测试账号
 	user := NewUser("17716858036", "xh0714")
@@ -39,15 +39,15 @@ func (st *TxsTestSuite) SetupTest() {
 	p2, err := st.user.NewPrivate(st.db, "第二个私钥")
 	st.Require().NoError(err)
 	//创建 2-2证书
-	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.Id, p2.Id}, "账户描述", []string{})
+	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.ID, p2.ID}, "账户描述", []string{})
 	st.Require().NoError(err)
 	err = st.db.InsertAccount(acc)
 	st.Require().NoError(err)
 	st.acc = acc
-	num, err := st.db.GetPrivateRefs(p1.Id)
+	num, err := st.db.GetPrivateRefs(p1.ID)
 	st.Require().NoError(err)
 	st.Require().Equal(num, 1, "ref num error")
-	num, err = st.db.GetPrivateRefs(p2.Id)
+	num, err = st.db.GetPrivateRefs(p2.ID)
 	st.Require().NoError(err)
 	st.Require().Equal(num, 1, "ref num error")
 }
@@ -69,7 +69,7 @@ func (st *TxsTestSuite) TestNewTx() {
 	lis := NewSignListener(st.db, st.user)
 	//生成交易
 	mi := bi.NewTrans(lis)
-	mi.Add(dst, 1*xginx.COIN)
+	mi.Add(dst, 1*xginx.Coin)
 	mi.Fee = 1000
 	tx, err := mi.NewTx()
 	st.Require().NoError(err)
@@ -96,10 +96,10 @@ func (st *TxsTestSuite) TestNewTx() {
 	ntx, err := stx.ToTx(st.db, bi)
 	st.Require().NoError(err)
 
-	st.Require().Equal(ntx.MustID().Bytes(), stx.Id, "id error")
+	st.Require().Equal(ntx.MustID().Bytes(), stx.ID, "id error")
 	//从数据库获取签名
 	//
-	err = st.db.DeleteTx(stx.Id)
+	err = st.db.DeleteTx(stx.ID)
 	st.Require().NoError(err)
 }
 
@@ -110,12 +110,12 @@ func (st *TxsTestSuite) TearDownTest() {
 		st.Require().NoError(err)
 	}
 	//删除账户
-	err := st.db.DeleteAccount(st.acc.Id, st.user.Id)
+	err := st.db.DeleteAccount(st.acc.ID, st.user.ID)
 	st.Require().NoError(err)
 }
 
 func (st *TxsTestSuite) TearDownSuite() {
-	err := st.db.DeleteUser(st.user.Id)
+	err := st.db.DeleteUser(st.user.ID)
 	st.Require().NoError(err)
 }
 
@@ -129,9 +129,8 @@ func TestTxsSuite(t *testing.T) {
 		suite.Run(t, st)
 		if t.Failed() {
 			return errors.New("TestAccounts test failed")
-		} else {
-			return nil
 		}
+		return nil
 	})
 	assert.NoError(t, err)
 }

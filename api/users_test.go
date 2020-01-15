@@ -25,8 +25,8 @@ func (st *ApiTestSuite) GetUserInfo() {
 	st.Require().Equal(code, 0, msg)
 	st.Assert().Equal(any.Get("mobile").ToString(), st.A, "mobile error")
 	//101个区块，2个coinbase可用，99个锁定
-	st.Assert().Equal(xginx.Amount(any.Get("coins").ToInt64()), 100*xginx.COIN, "coins error")
-	st.Assert().Equal(xginx.Amount(any.Get("locks").ToInt64()), 4950*xginx.COIN, "locks error")
+	st.Assert().Equal(xginx.Amount(any.Get("coins").ToInt64()), 100*xginx.Coin, "coins error")
+	st.Assert().Equal(xginx.Amount(any.Get("locks").ToInt64()), 4950*xginx.Coin, "locks error")
 	//创建一个私钥
 	v := url.Values{}
 	v.Set("desc", "私钥信息")

@@ -9,19 +9,23 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+//私钥表名
 const (
 	TPrivatesName = "privates"
 )
 
+//CipherType 私钥加密类型
 type CipherType int
 
+//加密类型
 const (
 	CipherTypeNone  CipherType = 0
 	CipherTypeAes   CipherType = 1    //aes加密方式
 	PrivateIDPrefix            = "kp" //私钥前缀
 )
 
-func GetPrivateId(pkh xginx.HASH160) string {
+//GetPrivateID 获取私钥ID
+func GetPrivateID(pkh xginx.HASH160) string {
 	id, err := xginx.EncodeAddressWithPrefix(PrivateIDPrefix, pkh)
 	if err != nil {
 		panic(err)
@@ -29,14 +33,15 @@ func GetPrivateId(pkh xginx.HASH160) string {
 	return id
 }
 
+//NewPrivate 创建一个私钥
 func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, pass ...string) *TPrivate {
 	dp := &TPrivate{}
 	ndk := dk.New(idx)
 	dp.Pks = ndk.GetPks()
 	dp.Pkh = dp.Pks.Hash()
-	dp.Id = GetPrivateId(dp.Pkh)
-	dp.Parent = dk.GetId()
-	dp.UserId = uid
+	dp.ID = GetPrivateID(dp.Pkh)
+	dp.Parent = dk.GetID()
+	dp.UserID = uid
 	if len(pass) > 0 && pass[0] != "" {
 		dp.Cipher = CipherTypeAes
 	} else {
@@ -52,7 +57,7 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 	return dp
 }
 
-//新建并写入私钥
+//NewPrivate 新建并写入私钥
 func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
@@ -71,12 +76,12 @@ func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate
 	if err != nil {
 		return nil, err
 	}
-	ptr := NewPrivate(user.Id, user.Idx, dk, desc, kpass...)
+	ptr := NewPrivate(user.ID, user.Idx, dk, desc, kpass...)
 	err = db.InsertPrivate(ptr)
 	if err != nil {
 		return nil, err
 	}
-	err = db.IncDeterIdx(TUsersName, user.Id)
+	err = db.IncDeterIdx(TUsersName, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -84,11 +89,11 @@ func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate
 	return ptr, nil
 }
 
-//私钥管理
+//TPrivate 私钥管理
 type TPrivate struct {
-	Id     string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
+	ID     string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
 	Parent string             `bson:"parent"` //父私钥id
-	UserId primitive.ObjectID `bson:"uid"`    //所属用户
+	UserID primitive.ObjectID `bson:"uid"`    //所属用户
 	Cipher CipherType         `bson:"cipher"` //加密方式
 	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
 	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
@@ -98,23 +103,23 @@ type TPrivate struct {
 	Desc   string             `bson:"desc"`   //描述
 }
 
-//加载密钥
+//GetDeter 加载密钥
 func (p *TPrivate) GetDeter(pass ...string) (*DeterKey, error) {
 	return LoadDeterKey(p.Keys, pass...)
 }
 
-//pass存在启用加密方式
+//New pass存在启用加密方式
 func (p *TPrivate) New(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
 	dk, err := p.GetDeter(pass...)
 	if err != nil {
 		return nil, err
 	}
-	pri := NewPrivate(p.UserId, p.Idx, dk, desc, pass...)
+	pri := NewPrivate(p.UserID, p.Idx, dk, desc, pass...)
 	err = db.InsertPrivate(pri)
 	if err != nil {
 		return nil, err
 	}
-	err = db.IncDeterIdx(TPrivatesName, p.Id)
+	err = db.IncDeterIdx(TPrivatesName, p.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +127,7 @@ func (p *TPrivate) New(db IDbImp, desc string, pass ...string) (*TPrivate, error
 	return pri, nil
 }
 
-//pw 根据加密方式暂时解密生成私钥对象
+//ToPrivate  根据加密方式暂时解密生成私钥对象
 func (p *TPrivate) ToPrivate(pass ...string) (*xginx.PrivateKey, error) {
 	//如果有加密，密码不能为空
 	if p.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
@@ -143,7 +148,7 @@ func (ctx *dbimp) SetPrivateKeyPass(uid primitive.ObjectID, pid string, old stri
 	if err != nil {
 		return err
 	}
-	if !ObjectIDEqual(pri.UserId, uid) {
+	if !ObjectIDEqual(pri.UserID, uid) {
 		return errors.New("can't update key pass")
 	}
 	dk, err := pri.GetDeter(old)
@@ -155,7 +160,7 @@ func (ctx *dbimp) SetPrivateKeyPass(uid primitive.ObjectID, pid string, old stri
 		return err
 	}
 	col := ctx.table(TPrivatesName)
-	_, err = col.UpdateOne(ctx, bson.M{"_id": pri.Id, "uid": uid}, bson.M{"$set": bson.M{"keys": keys}})
+	_, err = col.UpdateOne(ctx, bson.M{"_id": pri.ID, "uid": uid}, bson.M{"$set": bson.M{"keys": keys}})
 	return err
 }
 
@@ -232,7 +237,7 @@ func (ctx *dbimp) InsertPrivate(obj *TPrivate) error {
 	if !ctx.IsTx() {
 		return errors.New("need tx")
 	}
-	_, err := ctx.GetPrivate(obj.Id)
+	_, err := ctx.GetPrivate(obj.ID)
 	if err == nil {
 		return errors.New("private exists")
 	}

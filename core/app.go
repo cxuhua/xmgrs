@@ -19,6 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+//token定义
 const (
 	TokenFormat   = "[(%s)]"
 	TokenPassword = "_Ufdf&^23232(j3434_"
@@ -36,6 +37,7 @@ core.sigs.ensureIndex({tid:1})
 core.sigs.ensureIndex({uid:1})
 */
 
+//数据连接地址
 var (
 	//连接字符串设置
 	RedisURI = "redis://127.0.0.1:6379"
@@ -55,11 +57,12 @@ var (
 	cipher   = xginx.NewAESCipher([]byte(TokenPassword))
 )
 
-//两个id是否相等
+//ObjectIDEqual 两个id是否相等
 func ObjectIDEqual(v1 primitive.ObjectID, v2 primitive.ObjectID) bool {
 	return bytes.Equal(v1[:], v2[:])
 }
 
+//ToObjectID 转换为objectID
 func ToObjectID(v interface{}) primitive.ObjectID {
 	switch v.(type) {
 	case primitive.ObjectID:
@@ -80,6 +83,7 @@ func ToObjectID(v interface{}) primitive.ObjectID {
 	}
 }
 
+//IAppDbImp app接口
 type IAppDbImp interface {
 	mongo.SessionContext
 	//是否在事务环境下
@@ -88,18 +92,19 @@ type IAppDbImp interface {
 	UseTx(fn func(ctx IDbImp) error) error
 }
 
+//App 定义
 type App struct {
 	context.Context
 	redis *redis.Client
 	mongo *mongo.Client
 }
 
-//生成一个token
+//GenToken 生成一个token
 func (app *App) GenToken() string {
 	return primitive.NewObjectID().Hex()
 }
 
-//加密token
+//EncryptToken 加密token
 func (app *App) EncryptToken(token string) string {
 	tk := fmt.Sprintf(TokenFormat, token)
 	ck, err := xginx.AesEncrypt(cipher, []byte(tk))
@@ -109,7 +114,7 @@ func (app *App) EncryptToken(token string) string {
 	return xginx.B58Encode(ck, xginx.BitcoinAlphabet)
 }
 
-//解密token
+//DecryptToken 解密token
 func (app *App) DecryptToken(cks string) (string, error) {
 	ck, err := xginx.B58Decode(cks, xginx.BitcoinAlphabet)
 	if err != nil {
@@ -132,11 +137,13 @@ func (app *App) DecryptToken(cks string) (string, error) {
 	return string(mk), nil
 }
 
+//Close 关闭app
+//一次接口访问结束时调用
 func (app *App) Close() {
 	//
 }
 
-//启用数据库和redis
+//UseDbWithTimeout 启用数据库和redis
 //如果需要处理redis超时用 conn.ProcessContext 方法
 func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error) error {
 	ctx, cancel := context.WithTimeout(app, timeout)
@@ -150,32 +157,33 @@ func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error
 	})
 }
 
-//单独使用redis
+//UseRedis 单独使用redis
 func (app *App) UseRedis(fn func(redv IRedisImp) error) error {
 	conn := rediscli.Conn()
 	defer conn.Close()
 	return fn(NewRedisImp(conn))
 }
 
-//使用默认超时
+//UseDb 使用默认超时
 func (app *App) UseDb(fn func(db IDbImp) error) error {
 	return app.UseDbWithTimeout(DbTimeout, fn)
 }
 
-//使用自定义超时事务
+//UseTxWithTimeout 使用自定义超时事务
 func (app *App) UseTxWithTimeout(timeout time.Duration, fn func(db IDbImp) error) error {
 	return app.UseDbWithTimeout(timeout, func(db IDbImp) error {
 		return db.UseTx(fn)
 	})
 }
 
-//使用默认超时事务
+//UseTx 使用默认超时事务
 func (app *App) UseTx(fn func(db IDbImp) error) error {
 	return app.UseDbWithTimeout(DbTimeout, func(db IDbImp) error {
 		return db.UseTx(fn)
 	})
 }
 
+//InitApp 初始化全局app
 //mongodb://user:pwd@localhost:27017
 //初始化一个实例对象
 func InitApp(ctx context.Context) *App {
@@ -214,11 +222,12 @@ const (
 	appkey = "appkey"
 )
 
-//获取实例对象
+//GetApp 获取实例对象
 func GetApp(c *gin.Context) *App {
 	return c.MustGet(appkey).(*App)
 }
 
+//AppHandler app gin中间件
 func AppHandler(ctx context.Context) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		app := InitApp(ctx)

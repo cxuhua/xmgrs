@@ -70,7 +70,7 @@ func (lis *mylis) OnUnlinkBlock(blk *xginx.BlockInfo) {
 	})
 }
 
-func (lis *mylis) runHttp() {
+func (lis *mylis) runHTTP() {
 	lis.ctx, lis.cancel = xginx.GetContext()
 	core.RedisURI = config.Redis
 	core.MongoURI = config.Mongo
@@ -99,7 +99,7 @@ func (lis *mylis) OnStart() {
 	}
 	gin.DefaultWriter = file
 	gin.DefaultErrorWriter = file
-	go lis.runHttp()
+	go lis.runHTTP()
 }
 
 func (lis *mylis) OnStop(sig os.Signal) {

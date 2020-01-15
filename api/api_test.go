@@ -53,10 +53,10 @@ func (st *ApiTestSuite) SetupSuite() {
 	err := app.UseTx(func(sdb core.IDbImp) error {
 		//先删除测试用户
 		if u, err := sdb.GetUserInfoWithMobile(st.A); err == nil {
-			sdb.DeleteUser(u.Id)
+			sdb.DeleteUser(u.ID)
 		}
 		if u, err := sdb.GetUserInfoWithMobile(st.B); err == nil {
-			sdb.DeleteUser(u.Id)
+			sdb.DeleteUser(u.ID)
 		}
 		//创建测试用户A
 		a := core.NewUser(st.A, "xh0714")
@@ -210,7 +210,7 @@ func (st *ApiTestSuite) TearDownTest() {
 func (st *ApiTestSuite) TestAccountProve() {
 	msg := "dfldjfkdj&*&8"
 	v := url.Values{}
-	v.Set("addr", string(st.aa.Id))
+	v.Set("addr", string(st.aa.ID))
 	v.Set("msg", msg)
 	any, err := st.Post("/v1/account/prove", v)
 	st.Require().NoError(err)
@@ -223,7 +223,7 @@ func (st *ApiTestSuite) TestAccountProve() {
 	st.Require().NoError(err)
 	addr, err := acc.GetAddress()
 	st.Require().NoError(err)
-	st.Require().Equal(string(addr), string(st.aa.Id), "addr error")
+	st.Require().Equal(string(addr), string(st.aa.ID), "addr error")
 	sigs := any.Get("sigs")
 	st.Require().True(sigs.Size() > 0)
 	ss := []string{}
