@@ -13,7 +13,7 @@ func RemoveRepeat(vs []string) []string {
 		ms[v] = true
 	}
 	vs = []string{}
-	for k, _ := range ms {
+	for k := range ms {
 		vs = append(vs, k)
 	}
 	return vs

@@ -6,7 +6,7 @@ replace github.com/cxuhua/xginx => ../xginx
 
 require (
 	github.com/DataDog/zstd v1.4.4 // indirect
-	github.com/cxuhua/xginx v0.0.0-00010101000000-000000000000
+	github.com/cxuhua/xginx v0.0.1
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/form/v4 v4.1.1
 	github.com/go-redis/redis/v7 v7.0.0-beta.5
