@@ -6,7 +6,7 @@ import (
 	"github.com/cxuhua/xginx"
 )
 
-func (st *ApiTestSuite) NewTx() {
+func (st *APITestSuite) NewTx() {
 	assert := st.Require()
 	//创建一个交易
 	v := url.Values{}

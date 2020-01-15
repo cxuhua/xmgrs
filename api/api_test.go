@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,7 +23,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ApiTestSuite struct {
+//APITestSuite api测试集合
+type APITestSuite struct {
 	suite.Suite
 	ctx   context.Context
 	token string
@@ -38,7 +38,7 @@ type ApiTestSuite struct {
 	ab    *core.TAccount
 }
 
-func (st *ApiTestSuite) SetupSuite() {
+func (st *APITestSuite) SetupSuite() {
 	st.ctx = context.Background()
 
 	st.A = "17716858036"
@@ -95,8 +95,7 @@ func (st *ApiTestSuite) SetupSuite() {
 	st.Require().NoError(err)
 }
 
-func (st *ApiTestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
-	log.Println("POST:", v.Encode())
+func (st *APITestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodPost, uri, strings.NewReader(v.Encode()))
 	if st.token != "" {
 		req.Header.Set("X-Access-Token", st.token)
@@ -112,11 +111,10 @@ func (st *ApiTestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("POST RECV:", string(body))
 	return jsoniter.Get(body), nil
 }
 
-func (st *ApiTestSuite) Get(uri string) (jsoniter.Any, error) {
+func (st *APITestSuite) Get(uri string) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodGet, uri, nil)
 	if st.token != "" {
 		req.Header.Set(core.TokenHeader, st.token)
@@ -131,12 +129,11 @@ func (st *ApiTestSuite) Get(uri string) (jsoniter.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("GET RECV:", string(body))
 	return jsoniter.Get(body), nil
 }
 
 //登陆A
-func (st *ApiTestSuite) LoginB() error {
+func (st *APITestSuite) LoginB() error {
 	if st.token != "" {
 		st.Get("/v1/quit/login")
 		st.token = ""
@@ -166,7 +163,7 @@ func (st *ApiTestSuite) LoginB() error {
 }
 
 //登陆A
-func (st *ApiTestSuite) LoginA() error {
+func (st *APITestSuite) LoginA() error {
 	if st.token != "" {
 		st.Get("/v1/quit/login")
 		st.token = ""
@@ -195,19 +192,19 @@ func (st *ApiTestSuite) LoginA() error {
 	return nil
 }
 
-func (st *ApiTestSuite) Do(w http.ResponseWriter, req *http.Request) {
+func (st *APITestSuite) Do(w http.ResponseWriter, req *http.Request) {
 	st.m.ServeHTTP(w, req)
 }
 
-func (st *ApiTestSuite) SetupTest() {
+func (st *APITestSuite) SetupTest() {
 
 }
 
-func (st *ApiTestSuite) TearDownTest() {
+func (st *APITestSuite) TearDownTest() {
 
 }
 
-func (st *ApiTestSuite) TestAccountProve() {
+func (st *APITestSuite) TestAccountProve() {
 	msg := "dfldjfkdj&*&8"
 	v := url.Values{}
 	v.Set("addr", string(st.aa.ID))
@@ -235,9 +232,8 @@ func (st *ApiTestSuite) TestAccountProve() {
 	st.Require().NoError(err)
 }
 
-func (st *ApiTestSuite) TearDownSuite() {
+func (st *APITestSuite) TearDownSuite() {
 	xginx.CloseTestBlock(st.bi)
-
 	any, err := st.Get("/v1/quit/login")
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
@@ -245,6 +241,6 @@ func (st *ApiTestSuite) TearDownSuite() {
 }
 
 func TestApi(t *testing.T) {
-	st := new(ApiTestSuite)
+	st := new(APITestSuite)
 	suite.Run(t, st)
 }

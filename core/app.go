@@ -24,6 +24,7 @@ const (
 	TokenFormat   = "[(%s)]"
 	TokenPassword = "_Ufdf&^23232(j3434_"
 	TokenHeader   = "X-Access-Token"
+	TokenTime     = time.Hour * 24 * 4
 )
 
 /*
@@ -131,8 +132,14 @@ func (app *App) DecryptToken(cks string) (string, error) {
 	if string(tk) != fmt.Sprintf(TokenFormat, string(mk)) {
 		return "", errors.New("token error")
 	}
-	if _, err := primitive.ObjectIDFromHex(string(mk)); err != nil {
+	oid, err := primitive.ObjectIDFromHex(string(mk))
+	if err != nil {
 		return "", err
+	}
+	//检测token是否过期
+	tdv := time.Now().Sub(oid.Timestamp())
+	if tdv < 0 || tdv > TokenTime {
+		return "", fmt.Errorf("token time error %v", tdv)
 	}
 	return string(mk), nil
 }

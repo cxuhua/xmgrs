@@ -6,7 +6,7 @@ import (
 	"github.com/cxuhua/xginx"
 )
 
-func (st *ApiTestSuite) TestAll() {
+func (st *APITestSuite) TestAll() {
 	st.GetUserInfo()
 
 	st.ListUserAccounts()
@@ -16,7 +16,7 @@ func (st *ApiTestSuite) TestAll() {
 	st.NewTx()
 }
 
-func (st *ApiTestSuite) GetUserInfo() {
+func (st *APITestSuite) GetUserInfo() {
 	any, err := st.Get("/v1/user/info")
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
@@ -53,7 +53,7 @@ func (st *ApiTestSuite) GetUserInfo() {
 	st.Require().Equal(code, 0, any.Get("error"))
 }
 
-func (st *ApiTestSuite) ListUserAccounts() {
+func (st *APITestSuite) ListUserAccounts() {
 	any, err := st.Get("/v1/list/accounts")
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
@@ -62,7 +62,7 @@ func (st *ApiTestSuite) ListUserAccounts() {
 }
 
 //检测A的金额
-func (st *ApiTestSuite) GetUserCoins() {
+func (st *APITestSuite) GetUserCoins() {
 	any, err := st.Get("/v1/user/coins")
 	st.Require().NoError(err)
 	st.Require().NotNil(any)

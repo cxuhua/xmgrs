@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/cxuhua/xmgrs/util"
 
@@ -360,7 +359,7 @@ func loginAPI(c *gin.Context) {
 			rv.Code = 104
 			return err
 		}
-		err = db.SetUserID(tk, user.ID, time.Hour*24*7)
+		err = db.SetUserID(tk, user.ID, core.TokenTime)
 		if err != nil {
 			rv.Code = 105
 			return err
