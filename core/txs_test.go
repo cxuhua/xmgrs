@@ -104,14 +104,14 @@ func (st *TxsTestSuite) TestNewTx() {
 }
 
 func (st *TxsTestSuite) TearDownTest() {
+	//删除账户
+	err := st.db.DeleteAccount(st.acc.ID, st.user.ID)
+	st.Require().NoError(err)
 	//删除私钥
 	for _, id := range st.acc.Kid {
 		err := st.db.DeletePrivate(id)
 		st.Require().NoError(err)
 	}
-	//删除账户
-	err := st.db.DeleteAccount(st.acc.ID, st.user.ID)
-	st.Require().NoError(err)
 }
 
 func (st *TxsTestSuite) TearDownSuite() {

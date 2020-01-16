@@ -72,7 +72,7 @@ func (k *DeterKey) New(idx uint32) *DeterKey {
 	if err != nil {
 		panic(err)
 	}
-	err = binary.Write(h, binary.BigEndian, idx)
+	err = binary.Write(h, xginx.Endian, idx)
 	if err != nil {
 		panic(err)
 	}

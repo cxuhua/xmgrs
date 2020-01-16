@@ -67,9 +67,8 @@ type TxModel struct {
 	Ins      []TxInModel  `json:"ins"` //为空是coinbase交易
 	Outs     []TxOutModel `json:"outs"`
 	LockTime uint32       `json:"lt"`
-	Confirm  uint32       `json:"confirm"` //确认数
+	Confirm  uint32       `json:"confirm"` //确认数 =0 表示在交易池中
 	BlkTime  uint32       `json:"time"`    //区块时间戳
-	Pool     bool         `json:"pool"`    //是否来自交易池
 }
 
 //NewTxModel 创建model
@@ -79,7 +78,6 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 		Ins:      []TxInModel{},
 		Outs:     []TxOutModel{},
 		LockTime: tx.LockTime,
-		Pool:     tx.IsPool(),
 	}
 	if blk != nil {
 		m.Confirm = bi.Height() - blk.Meta.Height + 1
@@ -167,15 +165,19 @@ func submitTxAPI(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
-	id := xginx.NewHASH256(args.ID).Bytes()
+	id := xginx.NewHASH256(args.ID)
 	app := core.GetApp(c)
 	uid := GetAppUserID(c)
 	bi := xginx.GetBlockIndex()
 	var tx *xginx.TX = nil
 	err := app.UseTx(func(db core.IDbImp) error {
-		ttx, err := db.GetTx(id)
+		ttx, err := db.GetTx(id.Bytes())
 		if err != nil {
 			return err
+		}
+		//如果已经在链中
+		if _, err := bi.LoadTX(id); err == nil {
+			return nil
 		}
 		if !core.ObjectIDEqual(ttx.UserID, uid) {
 			return errors.New("not mine ttx")

@@ -18,6 +18,7 @@ import (
 	"github.com/cxuhua/xmgrs/core"
 
 	"github.com/cxuhua/xginx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,7 @@ import (
 type APITestSuite struct {
 	suite.Suite
 	ctx   context.Context
+	db    core.IDbImp
 	token string
 	m     *gin.Engine
 	A     string
@@ -241,6 +243,16 @@ func (st *APITestSuite) TearDownSuite() {
 }
 
 func TestApi(t *testing.T) {
-	st := new(APITestSuite)
-	suite.Run(t, st)
+	app := core.InitApp(context.Background())
+	defer app.Close()
+	err := app.UseTx(func(db core.IDbImp) error {
+		st := new(APITestSuite)
+		st.db = db
+		suite.Run(t, st)
+		if t.Failed() {
+			return errors.New("TestAccounts test failed")
+		}
+		return nil
+	})
+	assert.NoError(t, err)
 }

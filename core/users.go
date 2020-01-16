@@ -23,6 +23,7 @@ type TUser struct {
 	Kid    string             `bson:"kid"`    //用户私钥id
 	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
+	PushID string             `bson:"pid"`    //推送id
 }
 
 //NewUser 创建用户
@@ -90,8 +91,8 @@ func (u *TUser) ListCoins(db IDbImp, bi *xginx.BlockIndex) (*xginx.CoinsState, e
 
 func (ctx *dbimp) SetUserToken(uid primitive.ObjectID, tk string) error {
 	col := ctx.table(TUsersName)
-	_, err := col.UpdateOne(ctx, bson.M{"_id": uid}, bson.M{"$set": bson.M{"token": tk}})
-	return err
+	sr := col.FindOneAndUpdate(ctx, bson.M{"_id": uid}, bson.M{"$set": bson.M{"token": tk}})
+	return sr.Err()
 }
 
 //获取用户相关的账户
@@ -161,6 +162,13 @@ func (ctx *dbimp) SetUserKeyPass(uid primitive.ObjectID, old string, new string)
 	col := ctx.table(TUsersName)
 	_, err = col.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"keys": keys}})
 	return err
+}
+
+// 设置用户推送id
+func (ctx *dbimp) SetPushID(uid primitive.ObjectID, pid string) error {
+	col := ctx.table(TUsersName)
+	sr := col.FindOneAndUpdate(ctx, bson.M{"_id": uid}, bson.M{"$set": bson.M{"pid": pid}})
+	return sr.Err()
 }
 
 //删除用户

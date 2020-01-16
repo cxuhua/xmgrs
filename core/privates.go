@@ -2,11 +2,13 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 //私钥表名
@@ -40,7 +42,7 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 	dp.Pks = ndk.GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.ID = GetPrivateID(dp.Pkh)
-	dp.Parent = dk.GetID()
+	dp.ParentID = dk.GetID()
 	dp.UserID = uid
 	if len(pass) > 0 && pass[0] != "" {
 		dp.Cipher = CipherTypeAes
@@ -91,16 +93,16 @@ func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate
 
 //TPrivate 私钥管理
 type TPrivate struct {
-	ID     string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
-	Parent string             `bson:"parent"` //父私钥id
-	UserID primitive.ObjectID `bson:"uid"`    //所属用户
-	Cipher CipherType         `bson:"cipher"` //加密方式
-	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
-	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
-	Keys   string             `bson:"keys"`   //私钥内容
-	Idx    uint32             `bson:"idx"`    //索引
-	Time   int64              `bson:"time"`   //创建时间
-	Desc   string             `bson:"desc"`   //描述
+	ID       string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
+	ParentID string             `bson:"pid"`    //父私钥id
+	UserID   primitive.ObjectID `bson:"uid"`    //所属用户
+	Cipher   CipherType         `bson:"cipher"` //加密方式
+	Pks      xginx.PKBytes      `bson:"pks"`    //公钥
+	Pkh      xginx.HASH160      `bson:"pkh"`    //公钥hash
+	Keys     string             `bson:"keys"`   //私钥内容
+	Idx      uint32             `bson:"idx"`    //索引
+	Time     int64              `bson:"time"`   //创建时间
+	Desc     string             `bson:"desc"`   //描述
 }
 
 //GetDeter 加载密钥
@@ -186,12 +188,9 @@ func (ctx *dbimp) ListPrivates(uid primitive.ObjectID) ([]*TPrivate, error) {
 
 func (ctx *dbimp) DeletePrivate(id string) error {
 	//没有引用账户才能删除
-	num, err := ctx.GetPrivateRefs(id)
-	if err != nil {
-		return err
-	}
-	if num > 0 {
-		return errors.New("has refs acc,can't delete")
+	has, err := ctx.HasPrivateRef(id)
+	if err != nil || has {
+		return fmt.Errorf("has refs acc,can't delete,err = %w", err)
 	}
 	col := ctx.table(TPrivatesName)
 	_, err = col.DeleteOne(ctx, bson.M{"_id": id})
@@ -217,6 +216,15 @@ func (ctx *dbimp) GetPrivate(id string) (*TPrivate, error) {
 		return nil, err
 	}
 	return v, nil
+}
+
+//HasPrivateRef 是否有账户引用此私钥
+func (ctx *dbimp) HasPrivateRef(id string) (bool, error) {
+	col := ctx.table(TAccountName)
+	opts := options.Count()
+	opts.SetLimit(1)
+	num, err := col.CountDocuments(ctx, bson.M{"kid": id}, opts)
+	return num > 0, err
 }
 
 func (ctx *dbimp) GetPrivateRefs(id string) (int, error) {

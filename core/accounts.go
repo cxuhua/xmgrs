@@ -190,10 +190,12 @@ func (ctx *dbimp) GetAccount(id xginx.Address) (*TAccount, error) {
 //DeleteAccount 删除用户账户
 func (ctx *dbimp) DeleteAccount(id xginx.Address, uid primitive.ObjectID) error {
 	col := ctx.table(TAccountName)
+	// 移除账户内相关的所属用户
 	sr := col.FindOneAndUpdate(ctx, bson.M{"_id": id, "uid": uid}, bson.M{"$pull": bson.M{"uid": uid}})
 	if sr.Err() != nil {
 		return sr.Err()
 	}
+	// 如果没有所属用户删除账号信息
 	sr = col.FindOneAndDelete(ctx, bson.M{"_id": id, "uid": bson.M{"$size": 0}})
 	if sr.Err() != nil {
 		return sr.Err()

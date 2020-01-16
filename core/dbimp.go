@@ -19,6 +19,8 @@ import (
 type IDbImp interface {
 	IAppDbImp
 	IRedisImp
+	//设置用户推送id
+	SetPushID(uid primitive.ObjectID, pid string) error
 	//保存用户token
 	SetUserToken(uid primitive.ObjectID, tk string) error
 	//添加一个用户信息
@@ -35,6 +37,8 @@ type IDbImp interface {
 	SetPrivateKeyPass(uid primitive.ObjectID, pid string, old string, new string) error
 	//添加一个私钥
 	InsertPrivate(obj *TPrivate) error
+	//只检测是否有引用
+	HasPrivateRef(id string) (bool, error)
 	//获取私钥id引用到的账户数量
 	GetPrivateRefs(id string) (int, error)
 	//删除一个私钥(危险)
