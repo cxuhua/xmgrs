@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cxuhua/xginx"
+	"github.com/cxuhua/xmgrs/config"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -24,7 +25,7 @@ const (
 	//token保存格式
 	TokenFormat = "[(%s)]"
 	//token密码
-	TokenPassword = "_Ufdf&^23232(j3434_"
+	TokenPassword = config.TokenKey
 	//token在header中的名称
 	TokenHeader = "X-Access-Token"
 	//token超时时间设置
@@ -45,9 +46,9 @@ core.sigs.ensureIndex({uid:1})
 //数据连接地址
 var (
 	//连接字符串设置
-	RedisURI = "redis://127.0.0.1:6379"
+	RedisURI = config.Redis
 	//数据库连接字符串
-	MongoURI = "mongodb://127.0.0.1:27017/?replicaSet=rs"
+	MongoURI = config.Mongo
 	//连接池设置
 	MaxPoolSize = uint64(2000)
 	MinPoolSize = uint64(10)

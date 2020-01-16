@@ -72,15 +72,13 @@ func (lis *mylis) OnUnlinkBlock(blk *xginx.BlockInfo) {
 
 func (lis *mylis) run() {
 	lis.ctx, lis.cancel = xginx.GetContext()
-	core.RedisURI = config.Redis
-	core.MongoURI = config.Mongo
 	//创建一个全局连接
 	lis.app = core.InitApp(lis.ctx)
 	//
 	m := api.InitEngine(lis.ctx)
 
 	lis.xhttp = &http.Server{
-		Addr:    config.HttpAddr,
+		Addr:    config.HTTPAddr,
 		Handler: m,
 	}
 	//启动http服务
