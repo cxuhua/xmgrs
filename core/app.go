@@ -21,10 +21,14 @@ import (
 
 //token定义
 const (
-	TokenFormat   = "[(%s)]"
+	//token保存格式
+	TokenFormat = "[(%s)]"
+	//token密码
 	TokenPassword = "_Ufdf&^23232(j3434_"
-	TokenHeader   = "X-Access-Token"
-	TokenTime     = time.Hour * 24 * 4
+	//token在header中的名称
+	TokenHeader = "X-Access-Token"
+	//token超时时间设置
+	TokenTime = time.Hour * 24 * 4
 )
 
 /*
