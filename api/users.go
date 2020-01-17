@@ -46,7 +46,10 @@ func accountProveAPI(c *gin.Context) {
 			return err
 		}
 		//记载私钥
-		acc := sac.ToAccount(db, true)
+		acc, err := sac.ToAccount(db, true)
+		if err != nil {
+			return err
+		}
 		str, err := acc.Dump(false)
 		if err != nil {
 			return err
@@ -470,20 +473,23 @@ func userInfoAPI(c *gin.Context) {
 		Locks  xginx.Amount `json:"locks"` //锁定的
 	}
 	res := result{}
-	err := app.UseDb(func(sdb core.IDbImp) error {
-		user, err := sdb.GetUserInfo(uid)
+	err := app.UseDb(func(db core.IDbImp) error {
+		user, err := db.GetUserInfo(uid)
 		if err != nil {
 			return err
 		}
 		//获取用户余额
 		bi := xginx.GetBlockIndex()
-		coins, err := user.ListCoins(sdb, bi)
+		coins, err := user.ListCoins(db, bi)
 		if err != nil {
 			res.Code = 101
 			return err
 		}
+		//可用的
 		res.Coins = coins.Coins.Balance()
+		//锁定的
 		res.Locks = coins.Locks.Balance()
+		//
 		res.Mobile = user.Mobile
 		return nil
 	})

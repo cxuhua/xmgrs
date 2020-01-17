@@ -16,7 +16,7 @@ import (
 //DeterKey 确定性私钥地址
 type DeterKey struct {
 	Root []byte `bson:"root"` //私钥内容
-	Key  []byte `bson:"key"`  //密钥编码
+	Key  []byte `bson:"key"`  //派生新私钥密钥
 }
 
 //LoadDeterKey 加载key
@@ -24,6 +24,9 @@ func LoadDeterKey(s string, pass ...string) (*DeterKey, error) {
 	data, err := xginx.HashLoad(s, pass...)
 	if err != nil {
 		return nil, err
+	}
+	if len(data) != 64 {
+		return nil, errors.New("data len error")
 	}
 	dk := &DeterKey{
 		Root: data[:32],

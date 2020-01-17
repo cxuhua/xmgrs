@@ -50,10 +50,10 @@ func (st *DbSignListener) SaveSigs() error {
 }
 
 //GetAcc 获取金额对应的账户
-func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) *xginx.Account {
+func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) (*xginx.Account, error) {
 	acc, err := st.db.GetAccount(ckv.GetAddress())
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	//只需要账号信息，不需要私钥
 	return acc.ToAccount(st.db, false)
@@ -274,8 +274,13 @@ func (st *setsigner) SignTx(singer xginx.ISigner, pass ...string) error {
 	if err != nil {
 		return err
 	}
+	//转换为xginx acc结构，不需要私钥
+	xacc, err := acc.ToAccount(st.db, false, pass...)
+	if err != nil {
+		return err
+	}
 	//创建脚本
-	wits := acc.ToAccount(st.db, false, pass...).NewWitnessScript()
+	wits := xacc.NewWitnessScript()
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
@@ -390,14 +395,16 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 }
 
 //ListUserTxs 获取用户需要处理的交易
+//sign 是否签名
 func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error) {
 	ids := map[xginx.HASH256]bool{}
-	//获取我未签名的记录
+	//获取需要uid签名的记录
 	col := ctx.table(TSigName)
 	iter, err := col.Find(ctx, bson.M{"uid": uid, "sigb": sign})
 	if err != nil {
 		return nil, err
 	}
+	//获取交易id列表
 	for iter.Next(ctx) {
 		v := &TSigs{}
 		err := iter.Decode(v)
@@ -509,6 +516,9 @@ func (ctx *dbimp) GetTx(id []byte) (*TTx, error) {
 
 //删除交易信息
 func (ctx *dbimp) DeleteTx(id []byte) error {
+	if !ctx.IsTx() {
+		return errors.New("need use tx")
+	}
 	//删除交易对应的签名列表
 	col := ctx.table(TSigName)
 	_, err := col.DeleteMany(ctx, bson.M{"tid": id})

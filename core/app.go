@@ -155,6 +155,20 @@ func (app *App) Close() {
 	//
 }
 
+//UseRedisWithTimeout 单独使用redis带有超时
+func (app *App) UseRedisWithTimeout(timeout time.Duration, fn func(redv IRedisImp) error) error {
+	ctx, cancel := context.WithTimeout(app, timeout)
+	defer cancel()
+	conn := rediscli.Conn()
+	defer conn.Close()
+	return fn(NewRedisImp(ctx, conn))
+}
+
+//UseRedis 单独使用redis使用默认时间
+func (app *App) UseRedis(fn func(redv IRedisImp) error) error {
+	return app.UseRedisWithTimeout(DbTimeout, fn)
+}
+
 //UseDbWithTimeout 启用数据库和redis
 //如果需要处理redis超时用 conn.ProcessContext 方法
 func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error) error {
@@ -167,13 +181,6 @@ func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error
 		//创建数据对象
 		return fn(NewDbImp(sctx, conn, false))
 	})
-}
-
-//UseRedis 单独使用redis
-func (app *App) UseRedis(fn func(redv IRedisImp) error) error {
-	conn := rediscli.Conn()
-	defer conn.Close()
-	return fn(NewRedisImp(conn))
 }
 
 //UseDb 使用默认超时
@@ -196,7 +203,7 @@ func (app *App) UseTx(fn func(db IDbImp) error) error {
 }
 
 //InitApp 初始化全局app
-//mongodb://user:pwd@localhost:27017
+//mongodb://user:pwd@localhost:27017/?
 //初始化一个实例对象
 func InitApp(ctx context.Context) *App {
 	dbonce.Do(func() {

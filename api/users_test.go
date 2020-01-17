@@ -7,7 +7,27 @@ import (
 	"github.com/cxuhua/xmgrs/util"
 )
 
+func (st *APITestSuite) RegisterUser() {
+	v := url.Values{}
+	v.Set("mobile", st.mobile)
+	v.Set("upass", "password")
+	v.Set("kpass", "kpassword")
+	v.Set("code", "9527")
+	any, err := st.Post("/v1/register", v)
+	st.Require().NoError(err)
+	st.Require().NotNil(any)
+	st.Require().Equal(any.Get("code").ToInt(), 0, any.Get("error").ToString())
+	user, err := st.db.GetUserInfoWithMobile(st.mobile)
+	st.Require().NoError(err)
+	st.Require().Equal(user.Mobile, st.mobile)
+	dk, err := user.GetDeterKey("kpassword")
+	st.Require().NoError(err)
+	st.Require().NotNil(dk)
+}
+
 func (st *APITestSuite) TestAll() {
+	st.RegisterUser()
+
 	st.GetUserInfo()
 
 	st.SetPushID()

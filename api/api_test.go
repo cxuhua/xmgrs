@@ -18,7 +18,6 @@ import (
 	"github.com/cxuhua/xmgrs/core"
 
 	"github.com/cxuhua/xginx"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/gin-gonic/gin"
@@ -27,22 +26,24 @@ import (
 //APITestSuite api测试集合
 type APITestSuite struct {
 	suite.Suite
-	ctx   context.Context
-	db    core.IDbImp
-	token string
-	m     *gin.Engine
-	A     string
-	au    *core.TUser
-	aa    *core.TAccount
-	bi    *xginx.BlockIndex
-	B     string
-	bu    *core.TUser
-	ab    *core.TAccount
+	ctx    context.Context
+	db     core.IDbImp
+	token  string
+	m      *gin.Engine
+	A      string
+	au     *core.TUser
+	aa     *core.TAccount
+	bi     *xginx.BlockIndex
+	B      string
+	bu     *core.TUser
+	ab     *core.TAccount
+	mobile string //测试手机号
 }
 
 func (st *APITestSuite) SetupSuite() {
 	st.ctx = context.Background()
 
+	st.mobile = "18018989"
 	st.A = "17716858036"
 	st.B = "18602851011"
 
@@ -58,6 +59,9 @@ func (st *APITestSuite) SetupSuite() {
 			sdb.DeleteUser(u.ID)
 		}
 		if u, err := sdb.GetUserInfoWithMobile(st.B); err == nil {
+			sdb.DeleteUser(u.ID)
+		}
+		if u, err := sdb.GetUserInfoWithMobile(st.mobile); err == nil {
 			sdb.DeleteUser(u.ID)
 		}
 		//创建测试用户A
@@ -245,14 +249,10 @@ func (st *APITestSuite) TearDownSuite() {
 func TestApi(t *testing.T) {
 	app := core.InitApp(context.Background())
 	defer app.Close()
-	err := app.UseTx(func(db core.IDbImp) error {
+	app.UseDb(func(db core.IDbImp) error {
 		st := new(APITestSuite)
 		st.db = db
 		suite.Run(t, st)
-		if t.Failed() {
-			return errors.New("TestAccounts test failed")
-		}
 		return nil
 	})
-	assert.NoError(t, err)
 }

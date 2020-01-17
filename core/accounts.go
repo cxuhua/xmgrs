@@ -100,7 +100,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 	return NewAccountFrom(uids, acc, desc, tags)
 }
 
-//TAccount 账户管理
+//TAccount 账户数据结构
 type TAccount struct {
 	ID     xginx.Address        `bson:"_id"`  //账号地址id
 	UserID []primitive.ObjectID `bson:"uid"`  //所属的多个账户，当用多个私钥创建时，所属私钥的用户集合
@@ -123,7 +123,7 @@ func (acc TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 }
 
 //ToAccount pri是否加载私钥
-func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) *xginx.Account {
+func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) (*xginx.Account, error) {
 	aj := &xginx.Account{
 		Num:  acc.Num,
 		Less: acc.Less,
@@ -139,20 +139,20 @@ func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) *xginx.Accou
 		aj.Pubs = append(aj.Pubs, pub)
 	}
 	if !pri {
-		return aj
+		return aj, nil
 	}
 	for _, kid := range acc.Kid {
 		pri, err := db.GetPrivate(kid)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		kp, err := pri.ToPrivate(pass...)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		aj.Pris[pri.Pks.Hash()] = kp
 	}
-	return aj
+	return aj, nil
 }
 
 //GetAddress 获取地址

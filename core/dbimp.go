@@ -83,7 +83,7 @@ type IDbImp interface {
 
 type dbimp struct {
 	mongo.SessionContext
-	redisImp
+	*redisImp
 	isTx bool
 }
 
@@ -113,7 +113,7 @@ func (db *dbimp) IsTx() bool {
 func NewDbImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,
-		redisImp:       redisImp{redv: redv},
+		redisImp:       &redisImp{Context: ctx, redv: redv},
 		isTx:           tx,
 	}
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,6 +20,7 @@ type IRedisImp interface {
 }
 
 type redisImp struct {
+	context.Context
 	redv *redis.Conn
 }
 
@@ -42,6 +44,9 @@ func (conn *redisImp) GetUserID(k string) (primitive.ObjectID, error) {
 }
 
 //NewRedisImp 创建缓存接口
-func NewRedisImp(redv *redis.Conn) IRedisImp {
-	return &redisImp{redv: redv}
+func NewRedisImp(ctx context.Context, redv *redis.Conn) IRedisImp {
+	return &redisImp{
+		Context: ctx,
+		redv:    redv,
+	}
 }
