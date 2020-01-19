@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -229,10 +230,12 @@ func (st *APITestSuite) TestAccountProve() {
 	st.Require().Equal(string(addr), string(st.aa.ID), "addr error")
 	sigs := any.Get("sigs")
 	st.Require().True(sigs.Size() > 0)
-	ss := []string{}
+	ss := [][]byte{}
 	for i := 0; i < sigs.Size(); i++ {
 		sv := sigs.Get(i).ToString()
-		ss = append(ss, sv)
+		sb, err := hex.DecodeString(sv)
+		st.Require().NoError(err)
+		ss = append(ss, sb)
 	}
 	err = acc.VerifyAll(hv, ss)
 	st.Require().NoError(err)
