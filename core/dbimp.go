@@ -100,7 +100,7 @@ func (db *dbimp) UseTx(fn func(db IDbImp) error) error {
 		return errors.New("tx core can't invoke Transaction")
 	}
 	_, err := db.WithTransaction(db, func(sdb mongo.SessionContext) (i interface{}, err error) {
-		return nil, fn(NewDbImp(sdb, db.redv, true))
+		return nil, fn(NewDbImp(sdb, db.rcli, true))
 	})
 	return err
 }
@@ -110,10 +110,10 @@ func (db *dbimp) IsTx() bool {
 }
 
 //NewDbImp 新建一个数据库接口
-func NewDbImp(ctx mongo.SessionContext, redv *redis.Conn, tx bool) IDbImp {
+func NewDbImp(ctx mongo.SessionContext, rcli *redis.Client, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,
-		redisImp:       &redisImp{Context: ctx, redv: redv},
+		redisImp:       &redisImp{Context: ctx, rcli: rcli},
 		isTx:           tx,
 	}
 }
