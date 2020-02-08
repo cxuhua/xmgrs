@@ -74,6 +74,11 @@ func TestRedis(t *testing.T) {
 		MinIdleConns: 0,
 	})
 
+	rdb := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs: []string{":7000", ":7001", ":7002", ":7003", ":7004", ":7005"},
+	})
+	rdb.Ping()
+
 	for {
 		conn := cli.Conn()
 		pong, err := conn.Ping().Result()

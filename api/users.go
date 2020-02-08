@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -59,7 +60,9 @@ func accountProveAPI(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		res.Sigs = sigs
+		for _, sigb := range sigs {
+			res.Sigs = append(res.Sigs, hex.EncodeToString(sigb))
+		}
 		return nil
 	})
 	if err != nil {
@@ -408,13 +411,13 @@ func listCoinsAPI(c *gin.Context) {
 	app := core.GetApp(c)
 	uid := GetAppUserID(c)
 	type item struct {
-		ID      xginx.Address `json:"id"`      //所属账号地址
-		Matured bool          `json:"matured"` //是否成熟
-		Pool    bool          `json:"pool"`    //是否是内存池中的
-		Value   xginx.Amount  `json:"value"`   //数量
-		TxID    string        `json:"tx"`      //交易id
-		Index   uint32        `json:"index"`   //输出索引
-		Height  uint32        `json:"height"`  //所在区块高度
+		ID     xginx.Address `json:"id"`     //所属账号地址
+		Locked bool          `json:"locked"` //是否成熟
+		Pool   bool          `json:"pool"`   //是否是内存池中的
+		Value  xginx.Amount  `json:"value"`  //数量
+		TxID   string        `json:"tx"`     //交易id
+		Index  uint32        `json:"index"`  //输出索引
+		Height uint32        `json:"height"` //所在区块高度
 	}
 	type result struct {
 		Model
@@ -446,7 +449,8 @@ func listCoinsAPI(c *gin.Context) {
 				continue
 			}
 			i.ID = id
-			i.Matured = coin.IsMatured(spent)
+			//未成熟的金额将被锁定
+			i.Locked = !coin.IsMatured(spent)
 			i.Pool = coin.IsPool()
 			i.Value = coin.Value
 			i.TxID = coin.TxID.String()
