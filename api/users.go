@@ -1,12 +1,9 @@
 package api
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/cxuhua/xmgrs/util"
 
 	"github.com/cxuhua/xginx"
 
@@ -14,63 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-//账号证明信息，证明系统是否有此账号的控制权
-func accountProveAPI(c *gin.Context) {
-	args := struct {
-		Addr xginx.Address `form:"addr" binding:"IsAddress"` //账号地址
-		Msg  string        `form:"msg" binding:"required"`   //签名随机信息
-	}{}
-	if err := c.ShouldBind(&args); err != nil {
-		c.JSON(http.StatusOK, NewModel(100, err))
-		return
-	}
-	type result struct {
-		Code  int           `json:"code"`
-		Addr  xginx.Address `json:"addr"`  //输入的地址
-		Msg   string        `json:"msg"`   //输入的随机信息
-		Nonce string        `json:"nonce"` //服务器端随机字符串，防止接口被利用
-		Acc   string        `json:"acc"`   //b58编码账户账号信息
-		Sigs  []string      `json:"sigs"`  //b58编码签名信息
-	}
-	//添加一些防止被利用
-	app := core.GetApp(c)
-	res := result{
-		Addr:  args.Addr,
-		Msg:   args.Msg,
-		Nonce: util.NonceStr(32),
-	}
-	hv := xginx.Hash256([]byte(args.Msg + res.Nonce))
-	err := app.UseDb(func(db core.IDbImp) error {
-		sac, err := db.GetAccount(args.Addr)
-		if err != nil {
-			return err
-		}
-		//记载私钥
-		acc, err := sac.ToAccount(db, true)
-		if err != nil {
-			return err
-		}
-		str, err := acc.Dump(false)
-		if err != nil {
-			return err
-		}
-		res.Acc = str
-		sigs, err := acc.SignAll(hv)
-		if err != nil {
-			return err
-		}
-		for _, sigb := range sigs {
-			res.Sigs = append(res.Sigs, hex.EncodeToString(sigb))
-		}
-		return nil
-	})
-	if err != nil {
-		c.JSON(http.StatusOK, NewModel(200, err))
-		return
-	}
-	c.JSON(http.StatusOK, res)
-}
 
 // 设置用户推送id
 func setUserPushIDAPI(c *gin.Context) {
@@ -130,14 +70,12 @@ func signTxAPI(c *gin.Context) {
 		if ttx.State != core.TTxStateNew {
 			return nil
 		}
-		//如果不是我的
-		if !core.ObjectIDEqual(ttx.UserID, uid) {
-			return errors.New("can't sign")
-		}
+		//获取需要我签名的信息
 		sigs, err := db.ListUserSigs(uid, id)
 		if err != nil {
 			return err
 		}
+		//开始签名
 		for _, sig := range sigs {
 			if sig.IsSign {
 				continue
@@ -152,7 +90,7 @@ func signTxAPI(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		//如果签名验证成功,更新为已经签名
+		//如果签名验证成功,更新为已经签名，否则需要等待所有签名执行完成
 		if ttx.Verify(db, bi) {
 			err = ttx.SetTxState(db, core.TTxStateSign)
 		}
@@ -231,9 +169,8 @@ func listUserSignTxsAPI(c *gin.Context) {
 			return err
 		}
 		for _, ttx := range txs {
-			//如果已经签名成功忽略
-			_, err := ttx.ToTx(db, bi)
-			if err == nil {
+			//如果已经签名
+			if ttx.Verify(db, bi) {
 				continue
 			}
 			ttxs = append(ttxs, ttx)
@@ -433,13 +370,13 @@ func listCoinsAPI(c *gin.Context) {
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)
 		if err != nil {
+			res.Code = 101
 			return err
 		}
 		//获取用户余额
-		bi := xginx.GetBlockIndex()
 		coins, err := user.ListCoins(sdb, bi)
 		if err != nil {
-			res.Code = 101
+			res.Code = 102
 			return err
 		}
 		for _, coin := range coins.All {

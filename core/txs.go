@@ -168,11 +168,11 @@ func (out TTxOut) ToTxOut() *xginx.TxOut {
 
 //TSigs 保存私钥id 需要签名的hash 并且标记是否已经签名
 type TSigs struct {
-	ID     primitive.ObjectID `bson:"_id"`  //id
+	ID     primitive.ObjectID `bson:"_id"`  //ID
 	UserID primitive.ObjectID `bson:"uid"`  //私钥所属用户
 	TxID   xginx.HASH256      `bson:"tid"`  //交易id
 	KeyID  string             `bson:"kid"`  //私钥id
-	Hash   []byte             `bson:"hash"` //签名hash
+	Hash   []byte             `bson:"hash"` //需要签名的HASH数据
 	Idx    int                `bson:"idx"`  //输入索引
 	IsSign bool               `bson:"sigb"` //是否签名
 	Sigs   xginx.SigBytes     `bson:"sigs"` //签名结果
@@ -221,23 +221,23 @@ type TTxState int
 
 //交易状态定义
 const (
-	TTxStateNew    = TTxState(0) //新交易
-	TTxStateSign   = TTxState(1) //已签名
-	TTxStatePool   = TTxState(2) //进入交易池
-	TTxStateBlock  = TTxState(3) //进入区块
-	TTxStateCancel = TTxState(4) //作废
+	TTxStateNew    TTxState = 0 //新交易
+	TTxStateSign   TTxState = 1 //已签名
+	TTxStatePool   TTxState = 2 //进入交易池
+	TTxStateBlock  TTxState = 3 //进入区块
+	TTxStateCancel TTxState = 4 //作废
 )
 
 //TTx 临时交易信息
 type TTx struct {
-	ID       []byte             `bson:"_id"` //交易id
-	UserID   primitive.ObjectID `bson:"uid"` //谁创建的交易
-	Ver      uint32             `bson:"ver"`
-	Ins      []TTxIn            `bson:"ins"`
-	Outs     []TTxOut           `bson:"outs"`
-	LockTime uint32             `bson:"lt"`
-	Time     int64              `bson:"time"` //创建时间
-	Desc     string             `bson:"desc"`
+	ID       []byte             `bson:"_id"`   //交易id
+	UserID   primitive.ObjectID `bson:"uid"`   //谁创建的交易
+	Ver      uint32             `bson:"ver"`   //TxVer
+	Ins      []TTxIn            `bson:"ins"`   //TxInputs
+	Outs     []TTxOut           `bson:"outs"`  //TxOuts
+	LockTime uint32             `bson:"lt"`    //TxLockTime
+	Time     int64              `bson:"time"`  //创建时间
+	Desc     string             `bson:"desc"`  //TxDesc
 	State    TTxState           `bson:"state"` //TTxState*
 }
 

@@ -71,7 +71,7 @@ type IDbImp interface {
 	SetSigs(id primitive.ObjectID, sigs xginx.SigBytes) error
 	//获取交易相关的签名对象
 	ListSigs(tid xginx.HASH256) (TxSigs, error)
-	//获取需要用户签名的交易
+	//获取需要用户签名的数据
 	ListUserSigs(uid primitive.ObjectID, tid xginx.HASH256) (TxSigs, error)
 	//获取签名对象
 	GetSigs(tid xginx.HASH256, kid string, hash []byte, idx int) (*TSigs, error)

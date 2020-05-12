@@ -42,10 +42,7 @@ func NewModel(code int, msg interface{}) Model {
 func IsAddress(fl validator.FieldLevel) bool {
 	v := fl.Field().String()
 	_, err := xginx.DecodeAddress(xginx.Address(v))
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 //HexHash160 字段是否是hash160 hex字符串
@@ -121,7 +118,7 @@ func IsLogin(c *gin.Context) {
 func V1Entry(rg *gin.RouterGroup) {
 	rg.POST("/register", registerAPI)
 	rg.POST("/login", loginAPI)
-	rg.POST("/account/prove", accountProveAPI)
+
 	auth := rg.Group("/", IsLogin)
 	auth.POST("/set/pushid", setUserPushIDAPI)
 	auth.GET("/quit/login", quitLoginAPI)

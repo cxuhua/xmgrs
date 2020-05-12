@@ -29,7 +29,7 @@ type mylis struct {
 
 func (lis *mylis) OnLinkBlock(blk *xginx.BlockInfo) {
 	//当一个区块连接到链上
-	//更新交易交易状态
+	//更新相关交易状态
 	lis.app.UseDb(func(db core.IDbImp) error {
 		for _, tx := range blk.Txs {
 			id, err := tx.ID()
@@ -51,6 +51,7 @@ func (lis *mylis) OnLinkBlock(blk *xginx.BlockInfo) {
 
 func (lis *mylis) OnUnlinkBlock(blk *xginx.BlockInfo) {
 	//当一个区块从链断开
+	//更新相关交易状态
 	lis.app.UseDb(func(db core.IDbImp) error {
 		for _, tx := range blk.Txs {
 			id, err := tx.ID()
