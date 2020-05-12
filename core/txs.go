@@ -221,11 +221,11 @@ type TTxState int
 
 //交易状态定义
 const (
-	TTxStateNew    = 0 //新交易
-	TTxStateSign   = 1 //已签名
-	TTxStatePool   = 2 //进入交易池
-	TTxStateBlock  = 3 //进入区块
-	TTxStateCancel = 4 //作废
+	TTxStateNew    = TTxState(0) //新交易
+	TTxStateSign   = TTxState(1) //已签名
+	TTxStatePool   = TTxState(2) //进入交易池
+	TTxStateBlock  = TTxState(3) //进入区块
+	TTxStateCancel = TTxState(4) //作废
 )
 
 //TTx 临时交易信息
@@ -318,6 +318,7 @@ func (stx *TTx) SetTxState(db IDbImp, state TTxState) error {
 
 //Verify 验证签名是否成功
 func (stx *TTx) Verify(db IDbImp, bi *xginx.BlockIndex) bool {
+	//转换成功校验就成功
 	_, err := stx.ToTx(db, bi)
 	return err == nil
 }

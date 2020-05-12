@@ -27,6 +27,9 @@ type TUser struct {
 }
 
 //NewUser 创建用户
+//mobile 手机号
+//upass 登陆密码
+//kpass 存在设置密钥加密密码
 func NewUser(mobile string, upass string, kpass ...string) *TUser {
 	ndk := NewDeterKey()
 	u := &TUser{}
