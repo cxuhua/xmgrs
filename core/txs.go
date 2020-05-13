@@ -59,8 +59,13 @@ func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) (*xginx.Account, error
 	return acc.ToAccount(st.db, false)
 }
 
-//GetExt 获取输出地址的扩展
-func (st *DbSignListener) GetExt(addr xginx.Address) []byte {
+//GetTxOutExec 获取输出执行脚本 addr 输出的地址
+func (st *DbSignListener) GetTxOutExec(addr xginx.Address) []byte {
+	return nil
+}
+
+//GetTxInExec 获取输入执行脚本 ckv消费的金额对象
+func (st *DbSignListener) GetTxInExec(ckv *xginx.CoinKeyValue) []byte {
 	return nil
 }
 
@@ -121,7 +126,6 @@ type TTxIn struct {
 	OutHash  []byte       `bson:"oid"`
 	OutIndex uint32       `bson:"idx"`
 	Script   xginx.Script `bson:"script"`
-	Sequence uint32       `bson:"seq"`
 }
 
 //NewTTxIn 创建输入
@@ -130,7 +134,6 @@ func NewTTxIn(in *xginx.TxIn) TTxIn {
 	vi.OutHash = in.OutHash[:]
 	vi.OutIndex = in.OutIndex.ToUInt32()
 	vi.Script = in.Script
-	vi.Sequence = in.Sequence
 	return vi
 }
 
@@ -140,7 +143,6 @@ func (in TTxIn) ToTxIn() *xginx.TxIn {
 	iv.OutHash = xginx.NewHASH256(in.OutHash)
 	iv.OutIndex = xginx.VarUInt(in.OutIndex)
 	iv.Script = in.Script
-	iv.Sequence = in.Sequence
 	return iv
 }
 
@@ -333,7 +335,6 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex, pass ...string) (*xginx.TX
 	for _, out := range stx.Outs {
 		tx.Outs = append(tx.Outs, out.ToTxOut())
 	}
-	tx.LockTime = stx.LockTime
 	//使用数据库中的签名设置脚本
 	err := tx.Sign(bi, &setsigner{db: db}, pass...)
 	if err != nil {
@@ -383,7 +384,6 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 	v.State = TTxStateNew
 	v.ID = tx.MustID().Bytes()
 	v.Ver = tx.Ver.ToUInt32()
-	v.LockTime = tx.LockTime
 	for _, in := range tx.Ins {
 		v.Ins = append(v.Ins, NewTTxIn(in))
 	}

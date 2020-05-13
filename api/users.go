@@ -137,9 +137,8 @@ func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 			panic(err)
 		}
 		inv := TxInModel{
-			Addr:     addr,
-			Value:    out.Value,
-			Sequence: in.Sequence,
+			Addr:  addr,
+			Value: out.Value,
 		}
 		m.Ins = append(m.Ins, inv)
 	}

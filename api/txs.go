@@ -63,21 +63,19 @@ type TxOutModel struct {
 
 //TxModel 交易model
 type TxModel struct {
-	Ver      uint32       `json:"ver"`
-	Ins      []TxInModel  `json:"ins"` //为空是coinbase交易
-	Outs     []TxOutModel `json:"outs"`
-	LockTime uint32       `json:"lt"`
-	Confirm  uint32       `json:"confirm"` //确认数 =0 表示在交易池中
-	BlkTime  uint32       `json:"time"`    //区块时间戳
+	Ver     uint32       `json:"ver"`
+	Ins     []TxInModel  `json:"ins"` //为空是coinbase交易
+	Outs    []TxOutModel `json:"outs"`
+	Confirm uint32       `json:"confirm"` //确认数 =0 表示在交易池中
+	BlkTime uint32       `json:"time"`    //区块时间戳
 }
 
 //NewTxModel 创建model
 func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxModel {
 	m := TxModel{
-		Ver:      tx.Ver.ToUInt32(),
-		Ins:      []TxInModel{},
-		Outs:     []TxOutModel{},
-		LockTime: tx.LockTime,
+		Ver:  tx.Ver.ToUInt32(),
+		Ins:  []TxInModel{},
+		Outs: []TxOutModel{},
 	}
 	if blk != nil {
 		m.Confirm = bi.Height() - blk.Meta.Height + 1
@@ -99,9 +97,8 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 			panic(err)
 		}
 		inv := TxInModel{
-			Addr:     addr,
-			Value:    out.Value,
-			Sequence: in.Sequence,
+			Addr:  addr,
+			Value: out.Value,
 		}
 		m.Ins = append(m.Ins, inv)
 	}
@@ -210,7 +207,6 @@ func createTxAPI(c *gin.Context) {
 		Dst  []string     `form:"dst" binding:"gt=0"`  //addr->amount 向addr转amount个
 		Fee  xginx.Amount `form:"fee" binding:"gte=0"` //交易费
 		Desc string       `form:"desc"`                //描述
-		LT   uint32       `form:"lt"`                  //locktime
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -235,7 +231,7 @@ func createTxAPI(c *gin.Context) {
 			mi.Add(av.Addr, av.Value)
 		}
 		mi.Fee = args.Fee
-		tx, err := mi.NewTx(args.LT)
+		tx, err := mi.NewTx()
 		if err != nil {
 			return err
 		}
