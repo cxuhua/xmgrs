@@ -279,13 +279,11 @@ func (st *setsigner) SignTx(singer xginx.ISigner, pass ...string) error {
 	if err != nil {
 		return err
 	}
-	//转换为xginx acc结构，不需要私钥
-	xacc, err := acc.ToAccount(st.db, false, pass...)
+	//创建脚本
+	wits, err := in.Script.ToWitness()
 	if err != nil {
 		return err
 	}
-	//创建脚本
-	wits := xacc.NewWitnessScript()
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
