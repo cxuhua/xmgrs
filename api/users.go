@@ -118,14 +118,13 @@ type TTxModel struct {
 //NewTTxModel 创建交易model
 func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 	m := TTxModel{
-		ID:       xginx.NewHASH256(ttx.ID).String(),
-		Ver:      ttx.Ver,
-		Ins:      []TxInModel{},
-		Outs:     []TxOutModel{},
-		LockTime: ttx.LockTime,
-		Time:     ttx.Time,
-		Desc:     ttx.Desc,
-		State:    ttx.State,
+		ID:    xginx.NewHASH256(ttx.ID).String(),
+		Ver:   ttx.Ver,
+		Ins:   []TxInModel{},
+		Outs:  []TxOutModel{},
+		Time:  ttx.Time,
+		Desc:  ttx.Desc,
+		State: ttx.State,
 	}
 	for _, in := range ttx.Ins {
 		out, err := in.ToTxIn().LoadTxOut(bi)

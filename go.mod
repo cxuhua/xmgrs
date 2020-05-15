@@ -2,7 +2,9 @@ module github.com/cxuhua/xmgrs
 
 go 1.13
 
-replace github.com/cxuhua/xginx => ../xginx
+replace github.com/cxuhua/xginx v0.0.1 => ../xginx
+
+replace github.com/cxuhua/gopher-lua v1.0.1 => ../gopher-lua
 
 require (
 	github.com/cxuhua/xginx v0.0.1

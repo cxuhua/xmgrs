@@ -94,7 +94,7 @@ func (st *DbSignListener) GetKeep() xginx.Address {
 
 //SignTx 获取签名信息,保存需要签名的信息
 func (st *DbSignListener) SignTx(singer xginx.ISigner, pass ...string) error {
-	addr := singer.GetAddress()
+	addr := singer.GetOutAddress()
 	//获取对应的账号
 	acc, err := st.db.GetAccount(addr)
 	if err != nil {
@@ -126,6 +126,7 @@ type TTxIn struct {
 	OutHash  []byte       `bson:"oid"`
 	OutIndex uint32       `bson:"idx"`
 	Script   xginx.Script `bson:"script"`
+	Sequence uint32       `bson:"seq"`
 }
 
 //NewTTxIn 创建输入
@@ -134,6 +135,7 @@ func NewTTxIn(in *xginx.TxIn) TTxIn {
 	vi.OutHash = in.OutHash[:]
 	vi.OutIndex = in.OutIndex.ToUInt32()
 	vi.Script = in.Script
+	vi.Sequence = in.Sequence.ToUInt32()
 	return vi
 }
 
@@ -232,15 +234,14 @@ const (
 
 //TTx 临时交易信息
 type TTx struct {
-	ID       []byte             `bson:"_id"`   //交易id
-	UserID   primitive.ObjectID `bson:"uid"`   //谁创建的交易
-	Ver      uint32             `bson:"ver"`   //TxVer
-	Ins      []TTxIn            `bson:"ins"`   //TxInputs
-	Outs     []TTxOut           `bson:"outs"`  //TxOuts
-	LockTime uint32             `bson:"lt"`    //TxLockTime
-	Time     int64              `bson:"time"`  //创建时间
-	Desc     string             `bson:"desc"`  //TxDesc
-	State    TTxState           `bson:"state"` //TTxState*
+	ID     []byte             `bson:"_id"`   //交易id
+	UserID primitive.ObjectID `bson:"uid"`   //谁创建的交易
+	Ver    uint32             `bson:"ver"`   //TxVer
+	Ins    []TTxIn            `bson:"ins"`   //TxInputs
+	Outs   []TTxOut           `bson:"outs"`  //TxOuts
+	Time   int64              `bson:"time"`  //创建时间
+	Desc   string             `bson:"desc"`  //TxDesc
+	State  TTxState           `bson:"state"` //TTxState*
 }
 
 //NewSigs 创建待签名对象
@@ -327,7 +328,7 @@ func (stx *TTx) Verify(db IDbImp, bi *xginx.BlockIndex) bool {
 
 //ToTx 转换为tx并将签名合并进去
 func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex, pass ...string) (*xginx.TX, error) {
-	tx := xginx.NewTx()
+	tx := xginx.NewTx(0)
 	tx.Ver = xginx.VarUInt(stx.Ver)
 	for _, in := range stx.Ins {
 		tx.Ins = append(tx.Ins, in.ToTxIn())
