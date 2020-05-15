@@ -231,7 +231,7 @@ func createTxAPI(c *gin.Context) {
 			mi.Add(av.Addr, av.Value)
 		}
 		mi.Fee = args.Fee
-		tx, err := mi.NewTx(0)
+		tx, err := mi.NewTx(0, xginx.DefaultTxScript)
 		if err != nil {
 			return err
 		}

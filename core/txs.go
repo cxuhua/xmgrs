@@ -61,12 +61,12 @@ func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) (*xginx.Account, error
 
 //GetTxOutExec 获取输出执行脚本 addr 输出的地址
 func (st *DbSignListener) GetTxOutExec(addr xginx.Address) []byte {
-	return nil
+	return xginx.DefaultLockedScript
 }
 
 //GetTxInExec 获取输入执行脚本 ckv消费的金额对象
 func (st *DbSignListener) GetTxInExec(ckv *xginx.CoinKeyValue) []byte {
-	return nil
+	return xginx.DefaultInputScript
 }
 
 //GetCoins 获取使用的金额
@@ -134,7 +134,7 @@ func NewTTxIn(in *xginx.TxIn) TTxIn {
 	vi := TTxIn{}
 	vi.OutHash = in.OutHash[:]
 	vi.OutIndex = in.OutIndex.ToUInt32()
-	vi.Script = in.Script
+	vi.Script = in.Script.Clone()
 	vi.Sequence = in.Sequence.ToUInt32()
 	return vi
 }
@@ -144,7 +144,8 @@ func (in TTxIn) ToTxIn() *xginx.TxIn {
 	iv := &xginx.TxIn{}
 	iv.OutHash = xginx.NewHASH256(in.OutHash)
 	iv.OutIndex = xginx.VarUInt(in.OutIndex)
-	iv.Script = in.Script
+	iv.Script = in.Script.Clone()
+	iv.Sequence = xginx.VarUInt(in.Sequence)
 	return iv
 }
 
@@ -158,7 +159,7 @@ type TTxOut struct {
 func NewTTXOut(out *xginx.TxOut) TTxOut {
 	vo := TTxOut{}
 	vo.Value = int64(out.Value)
-	vo.Script = out.Script
+	vo.Script = out.Script.Clone()
 	return vo
 }
 
@@ -166,7 +167,7 @@ func NewTTXOut(out *xginx.TxOut) TTxOut {
 func (out TTxOut) ToTxOut() *xginx.TxOut {
 	ov := &xginx.TxOut{}
 	ov.Value = xginx.Amount(out.Value)
-	ov.Script = out.Script
+	ov.Script = out.Script.Clone()
 	return ov
 }
 
@@ -234,14 +235,15 @@ const (
 
 //TTx 临时交易信息
 type TTx struct {
-	ID     []byte             `bson:"_id"`   //交易id
-	UserID primitive.ObjectID `bson:"uid"`   //谁创建的交易
-	Ver    uint32             `bson:"ver"`   //TxVer
-	Ins    []TTxIn            `bson:"ins"`   //TxInputs
-	Outs   []TTxOut           `bson:"outs"`  //TxOuts
-	Time   int64              `bson:"time"`  //创建时间
-	Desc   string             `bson:"desc"`  //TxDesc
-	State  TTxState           `bson:"state"` //TTxState*
+	ID     []byte             `bson:"_id"`    //交易id
+	UserID primitive.ObjectID `bson:"uid"`    //谁创建的交易
+	Ver    uint32             `bson:"ver"`    //TxVer
+	Ins    []TTxIn            `bson:"ins"`    //TxInputs
+	Outs   []TTxOut           `bson:"outs"`   //TxOuts
+	Script xginx.Script       `bson:"script"` //交易脚本
+	Time   int64              `bson:"time"`   //创建时间
+	Desc   string             `bson:"desc"`   //TxDesc
+	State  TTxState           `bson:"state"`  //TTxState*
 }
 
 //NewSigs 创建待签名对象
@@ -336,6 +338,7 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex, pass ...string) (*xginx.TX
 	for _, out := range stx.Outs {
 		tx.Outs = append(tx.Outs, out.ToTxOut())
 	}
+	tx.Script = stx.Script.Clone()
 	//使用数据库中的签名设置脚本
 	err := tx.Sign(bi, &setsigner{db: db}, pass...)
 	if err != nil {
@@ -391,6 +394,7 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 	for _, out := range tx.Outs {
 		v.Outs = append(v.Outs, NewTTXOut(out))
 	}
+	v.Script = tx.Script.Clone()
 	v.UserID = uid
 	v.Time = time.Now().Unix()
 	return v

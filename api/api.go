@@ -9,7 +9,7 @@ import (
 	"github.com/cxuhua/xginx"
 
 	"github.com/gin-gonic/gin/binding"
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/go-playground/validator/v10"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 

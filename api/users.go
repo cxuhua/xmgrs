@@ -93,6 +93,8 @@ func signTxAPI(c *gin.Context) {
 		//如果签名验证成功,更新为已经签名，否则需要等待所有签名执行完成
 		if ttx.Verify(db, bi) {
 			err = ttx.SetTxState(db, core.TTxStateSign)
+		} else {
+			err = fmt.Errorf("ttx verify error %v", args.ID)
 		}
 		return err
 	})

@@ -23,6 +23,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func init() {
+	xginx.DebugScript = true
+}
+
 //APITestSuite api测试集合
 type APITestSuite struct {
 	suite.Suite

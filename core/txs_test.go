@@ -77,7 +77,7 @@ func (st *TxsTestSuite) TestNewTx() {
 	mi.Add(dst, 1*xginx.Coin)
 	//1000作为交易费
 	mi.Fee = 1000
-	tx, err := mi.NewTx(0)
+	tx, err := mi.NewTx(0, xginx.DefaultTxScript)
 	st.Require().NoError(err)
 	//2-2账户会生成两个签名
 	sigs := lis.GetSigs()
