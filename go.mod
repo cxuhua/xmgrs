@@ -16,6 +16,5 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/xdg/stringprep v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.3.3
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	github.com/go-playground/validator/v10 v10.2.0
 )
