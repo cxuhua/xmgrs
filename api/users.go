@@ -349,7 +349,7 @@ func listCoinsAPI(c *gin.Context) {
 	uid := GetAppUserID(c)
 	type item struct {
 		ID     xginx.Address `json:"id"`     //所属账号地址
-		Locked bool          `json:"locked"` //是否成熟
+		Locked bool          `json:"locked"` //是否被锁定，锁定的不可用
 		Pool   bool          `json:"pool"`   //是否是内存池中的
 		Value  xginx.Amount  `json:"value"`  //数量
 		TxID   string        `json:"tx"`     //交易id
@@ -366,6 +366,7 @@ func listCoinsAPI(c *gin.Context) {
 		Items:  []item{},
 		Height: bi.Height(),
 	}
+	//判断消费高度下金额是否可用
 	spent := bi.NextHeight()
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)

@@ -360,7 +360,7 @@ func createAccountAPI(c *gin.Context) {
 func createUserPrivateAPI(c *gin.Context) {
 	args := struct {
 		Desc string        `form:"desc"` //私钥描述
-		Pass []string      `form:"pass"` //私钥密码,存在会加密私钥
+		Pass []string      `form:"pass"` //私钥密码,如果有密码必须一致
 		Exp  time.Duration `form:"exp"`  //过期时间 单位:秒
 	}{}
 	if err := c.ShouldBind(&args); err != nil {

@@ -74,11 +74,12 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 	if num == 0 {
 		return nil, errors.New("num error")
 	}
+	//移除重复的私钥id
 	ids = util.RemoveRepeat(ids)
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
-	//获取公钥和相关的用户
+	//获取和这些私钥相关的用户
 	imap := map[primitive.ObjectID]bool{}
 	pks := []xginx.PKBytes{}
 	for idx, id := range ids {
@@ -89,6 +90,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 		imap[pri.UserID] = true
 		pks = append(pks, pri.Pks)
 	}
+	//根据相关私钥创建账户地址
 	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
 	if err != nil {
 		return nil, err
