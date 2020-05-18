@@ -111,7 +111,7 @@ func (st *APITestSuite) GetUserCoins() {
 	txid := any.Get("items", 0, "tx").ToString()
 	addr := any.Get("items", 0, "id").ToString()
 
-	any, err = st.Get("/v1/tx/info/" + txid)
+	any, err = st.Get("/v1/tx/info/"+txid, true)
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
 	code = any.Get("code").ToInt()

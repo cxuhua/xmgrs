@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/cxuhua/xginx"
 
@@ -19,7 +20,7 @@ func TestLoadDumpKey(t *testing.T) {
 	}
 	k2, err := LoadDeterKey(s, "1111")
 	as.NoError(err)
-	as.Equal(k1.Root, k2.Root)
+	as.Equal(k1.Body, k2.Body)
 	as.Equal(k1.Key, k2.Key)
 	msg := xginx.Hash256([]byte("dkfsdnf(9343"))
 	pri, err := k2.GetPrivateKey()
@@ -44,7 +45,7 @@ func TestNewPrivate(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		dp, err := user.NewPrivate(db, "测试私钥1", "1111")
+		dp, err := user.NewPrivate(db, time.Hour*24*365, "测试私钥1", "1111")
 		if err != nil {
 			return err
 		}

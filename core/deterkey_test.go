@@ -15,7 +15,7 @@ func TestNewDeterKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(dk.Root, pk.Root) {
+	if !bytes.Equal(dk.Body, pk.Body) {
 		t.Fatal("root not equal")
 	}
 	if !bytes.Equal(dk.Key, pk.Key) {
@@ -29,7 +29,7 @@ func TestNewDeterKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(dk.Root, pk.Root) {
+	if !bytes.Equal(dk.Body, pk.Body) {
 		t.Fatal("root not equal")
 	}
 	if !bytes.Equal(dk.Key, pk.Key) {

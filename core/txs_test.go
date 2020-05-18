@@ -33,10 +33,10 @@ func (st *TxsTestSuite) SetupSuite() {
 
 func (st *TxsTestSuite) SetupTest() {
 	st.Require().NotNil(st.user, "default user miss")
-	p1, err := st.user.NewPrivate(st.db, "第一个私钥")
+	p1, err := st.user.NewPrivate(st.db, DefaultExpTime, "第一个私钥")
 	st.Require().NoError(err)
 	//创建私钥2
-	p2, err := st.user.NewPrivate(st.db, "第二个私钥")
+	p2, err := st.user.NewPrivate(st.db, DefaultExpTime, "第二个私钥")
 	st.Require().NoError(err)
 	//创建 2-2证书
 	acc, err := NewAccount(st.db, 2, 2, false, []string{p1.ID, p2.ID}, "账户描述", []string{})
@@ -74,7 +74,7 @@ func (st *TxsTestSuite) TestNewTx() {
 	//生成交易
 	mi := bi.NewTrans(lis)
 	//向dst转账1COIN
-	mi.Add(dst, 1*xginx.Coin)
+	mi.Add(dst, 1*xginx.Coin, xginx.DefaultLockedScript)
 	//1000作为交易费
 	mi.Fee = 1000
 	tx, err := mi.NewTx(0, xginx.DefaultTxScript)

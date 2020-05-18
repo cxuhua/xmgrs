@@ -17,10 +17,9 @@ const (
 type TUser struct {
 	ID     primitive.ObjectID `bson:"_id"`    //id
 	Mobile string             `bson:"mobile"` //手机号
-	Pass   xginx.HASH256      `bson:"pass"`   //hash256密钥
-	Keys   string             `bson:"keys"`   //确定性key b58编码
+	Pass   xginx.HASH256      `bson:"pass"`   //hash256登陆密码
+	Keys   string             `bson:"keys"`   //b58编码存储的DeterKey内容,如果创建用户时设置了密码，这里会被加密
 	Cipher CipherType         `bson:"cipher"` //key加密方式
-	Kid    string             `bson:"kid"`    //用户私钥id
 	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
 	PushID string             `bson:"pid"`    //推送id
@@ -45,7 +44,6 @@ func NewUser(mobile string, upass string, kpass ...string) *TUser {
 		panic(err)
 	}
 	u.Keys = keys
-	u.Kid = ndk.GetID()
 	u.Idx = 0
 	u.Pass = xginx.Hash256From([]byte(upass))
 	return u
@@ -62,7 +60,7 @@ func (u *TUser) GetDeterKey(pass ...string) (*DeterKey, error) {
 //CheckPass 检测登陆密码
 func (u *TUser) CheckPass(pass string) bool {
 	hv := xginx.Hash256From([]byte(pass))
-	return hv.Equal(u.Pass)
+	return len(pass) > 0 && hv.Equal(u.Pass)
 }
 
 //ListTxs 获取用户相关的交易

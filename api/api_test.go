@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,7 +25,7 @@ import (
 )
 
 func init() {
-	xginx.DebugScript = true
+	*xginx.IsDebug = true
 }
 
 //APITestSuite api测试集合
@@ -105,7 +106,7 @@ func (st *APITestSuite) SetupSuite() {
 	st.Require().NoError(err)
 }
 
-func (st *APITestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
+func (st *APITestSuite) Post(uri string, v url.Values, debug ...bool) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodPost, uri, strings.NewReader(v.Encode()))
 	if st.token != "" {
 		req.Header.Set("X-Access-Token", st.token)
@@ -121,10 +122,13 @@ func (st *APITestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(debug) > 0 && debug[0] {
+		log.Println(string(body))
+	}
 	return jsoniter.Get(body), nil
 }
 
-func (st *APITestSuite) Get(uri string) (jsoniter.Any, error) {
+func (st *APITestSuite) Get(uri string, debug ...bool) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodGet, uri, nil)
 	if st.token != "" {
 		req.Header.Set(core.TokenHeader, st.token)
@@ -138,6 +142,9 @@ func (st *APITestSuite) Get(uri string) (jsoniter.Any, error) {
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
+	}
+	if len(debug) > 0 && debug[0] {
+		log.Println(string(body))
 	}
 	return jsoniter.Get(body), nil
 }

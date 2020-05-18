@@ -93,7 +93,9 @@ func (st *DbSignListener) GetKeep() xginx.Address {
 }
 
 //SignTx 获取签名信息,保存需要签名的信息
+//这里只保存需要签名的hash，不进行签名
 func (st *DbSignListener) SignTx(singer xginx.ISigner, pass ...string) error {
+	//每个输入对应的输出都需要签名
 	addr := singer.GetOutAddress()
 	//获取对应的账号
 	acc, err := st.db.GetAccount(addr)

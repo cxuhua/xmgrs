@@ -30,11 +30,11 @@ func TestAddUsersWithKeyPassword(t *testing.T) {
 		if !ObjectIDEqual(u.ID, u1.ID) {
 			return errors.New("find user error")
 		}
-		_, err = u.NewPrivate(db, "第一个加密的私钥", kpass)
+		_, err = u.NewPrivate(db, DefaultExpTime, "第一个加密的私钥", kpass)
 		if err != nil {
 			return err
 		}
-		_, err = u.NewPrivate(db, "第二个加密的私钥", kpass)
+		_, err = u.NewPrivate(db, DefaultExpTime, "第二个加密的私钥", kpass)
 		if err != nil {
 			return err
 		}
@@ -67,11 +67,11 @@ func TestAddUsers(t *testing.T) {
 		if !ObjectIDEqual(u.ID, u1.ID) {
 			return errors.New("find user error")
 		}
-		_, err = u.NewPrivate(db, "第一个私钥")
+		_, err = u.NewPrivate(db, DefaultExpTime, "第一个私钥")
 		if err != nil {
 			return err
 		}
-		_, err = u.NewPrivate(db, "第二个私钥")
+		_, err = u.NewPrivate(db, DefaultExpTime, "第二个私钥")
 		if err != nil {
 			return err
 		}

@@ -2,9 +2,37 @@ package api
 
 import (
 	"net/url"
+	"testing"
 
 	"github.com/cxuhua/xginx"
 )
+
+func TestParseValueScript(t *testing.T) {
+	s := "111"
+	s1, s2 := parseValueScript(s)
+	if s1 == "" && s2 == "" {
+		t.Fatal("empty error")
+	}
+	if s1 != s || s2 != "" {
+		t.Fatal("t1 error")
+	}
+	s = "222,"
+	s1, s2 = parseValueScript(s)
+	if s1 == "" && s2 == "" {
+		t.Fatal("empty error")
+	}
+	if s1 != "222" || s2 != "" {
+		t.Fatal("t2 error")
+	}
+	s = "333,444"
+	s1, s2 = parseValueScript(s)
+	if s1 == "" && s2 == "" {
+		t.Fatal("empty error")
+	}
+	if s1 != "333" || s2 != "444" {
+		t.Fatal("t3 error")
+	}
+}
 
 func (st *APITestSuite) NewTx() {
 	assert := st.Require()
@@ -12,13 +40,14 @@ func (st *APITestSuite) NewTx() {
 	v := url.Values{}
 	//向B转账1000个积分,交易费 10
 	dst := AddrValue{
-		Addr:  st.ab.GetAddress(),
-		Value: 1 * xginx.Coin,
+		Addr:      st.ab.GetAddress(),
+		Value:     1 * xginx.Coin,
+		OutScript: string(xginx.DefaultLockedScript),
 	}
 	v.Add("dst", dst.String())
 	v.Set("fee", "10")
 	v.Set("desc", "this is desc")
-	v.Set("lt", "0")
+	v.Set("script", "return true")
 	any, err := st.Post("/v1/new/tx", v)
 	assert.NoError(err)
 	assert.NotNil(any)

@@ -5,18 +5,18 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
 
 	"github.com/cxuhua/xginx"
+	"github.com/cxuhua/xmgrs/util"
 )
 
 //DeterKey 确定性私钥地址
 type DeterKey struct {
-	Root []byte `bson:"root"` //私钥内容
-	Key  []byte `bson:"key"`  //派生新私钥密钥
+	Body []byte `bson:"body"` //私钥内容 32 bytes
+	Key  []byte `bson:"key"`  //派生新私钥密钥 32 bytes,派生下个密钥使用
 }
 
 //LoadDeterKey 加载key
@@ -29,7 +29,7 @@ func LoadDeterKey(s string, pass ...string) (*DeterKey, error) {
 		return nil, errors.New("data len error")
 	}
 	dk := &DeterKey{
-		Root: data[:32],
+		Body: data[:32],
 		Key:  data[32:],
 	}
 	return dk, nil
@@ -52,41 +52,41 @@ func (k DeterKey) GetPks() xginx.PKBytes {
 
 //GetPrivateKey 获取私钥
 func (k DeterKey) GetPrivateKey() (*xginx.PrivateKey, error) {
-	return xginx.NewPrivateKeyWithBytes(k.Root)
+	return xginx.NewPrivateKeyWithBytes(k.Body)
 }
 
 //Dump 备份密钥
 func (k DeterKey) Dump(pass ...string) (string, error) {
-	data := append([]byte{}, k.Root...)
+	data := append([]byte{}, k.Body...)
 	data = append(data, k.Key...)
 	return xginx.HashDump(data, pass...)
 }
 
 func (k DeterKey) String() string {
-	return fmt.Sprintf("Root=%s,Key=%s", hex.EncodeToString(k.Root), hex.EncodeToString(k.Key))
+	return fmt.Sprintf("Body=%s,Key=%s", util.Hex(k.Body), util.Hex(k.Key))
 }
 
 //New 派生一个密钥
-func (k *DeterKey) New(idx uint32) *DeterKey {
+func (k *DeterKey) New(idx uint32) (*DeterKey, error) {
 	h := hmac.New(func() hash.Hash {
 		return sha512.New()
 	}, k.Key)
-	_, err := h.Write(k.Root)
+	_, err := h.Write(k.Body)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	err = binary.Write(h, xginx.Endian, idx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	b := h.Sum(nil)
 	if len(b) != 64 {
 		panic(errors.New("hmac sha512 sum error"))
 	}
 	return &DeterKey{
-		Root: b[:32],
+		Body: b[:32],
 		Key:  b[32:],
-	}
+	}, nil
 }
 
 //NewDeterKey 创建一个确定性私钥
@@ -101,7 +101,7 @@ func NewDeterKey() *DeterKey {
 		panic(err)
 	}
 	k := &DeterKey{}
-	k.Root = pri.Bytes()
+	k.Body = pri.Bytes()
 	k.Key = key
 	return k
 }

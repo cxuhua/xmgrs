@@ -57,6 +57,13 @@ func HexHash256(fl validator.FieldLevel) bool {
 	return err == nil && len(v) == len(xginx.HASH256{})
 }
 
+//IsScript 字段是否是合法的脚本
+func IsScript(fl validator.FieldLevel) bool {
+	str := fl.Field().String()
+	err := xginx.CheckScript([]byte(str))
+	return err == nil
+}
+
 //InitEngine 获取默认gin引擎
 func InitEngine(ctx context.Context) *gin.Engine {
 	//注册自定义校验器
@@ -64,6 +71,7 @@ func InitEngine(ctx context.Context) *gin.Engine {
 		v.RegisterValidation("HexHash256", HexHash256)
 		v.RegisterValidation("HexHash160", HexHash160)
 		v.RegisterValidation("IsAddress", IsAddress)
+		v.RegisterValidation("IsScript", IsScript)
 	}
 	//
 	m := gin.New()

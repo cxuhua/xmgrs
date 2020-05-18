@@ -26,7 +26,7 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool, desc s
 	}
 	ids := []string{}
 	for i := 0; i < int(num); i++ {
-		pri, err := user.NewPrivate(db, "自动创建")
+		pri, err := user.NewPrivate(db, DefaultExpTime, "自动创建")
 		if err != nil {
 			return nil, err
 		}
@@ -108,8 +108,8 @@ type TAccount struct {
 	Num    uint8                `bson:"num"`  //总的密钥数量
 	Less   uint8                `bson:"less"` //至少通过的签名数量
 	Arb    uint8                `bson:"arb"`  //是否仲裁
-	Pks    []xginx.PKBytes      `bson:"pks"`  //公钥
-	Kid    []string             `bson:"kid"`  //密钥id
+	Pks    []xginx.PKBytes      `bson:"pks"`  //包含的公钥
+	Kid    []string             `bson:"kid"`  //包含的密钥id
 	Time   int64                `bson:"time"` //创建时间
 	Desc   string               `bson:"desc"` //描述
 }
@@ -138,6 +138,7 @@ func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) (*xginx.Acco
 		}
 		aj.Pubs = append(aj.Pubs, pub)
 	}
+	//如果不加载私钥
 	if !pri {
 		return aj, nil
 	}
