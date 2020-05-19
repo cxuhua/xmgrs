@@ -24,9 +24,20 @@ type CipherType int
 //加密类型
 const (
 	CipherTypeNone  CipherType = 0
-	CipherTypeAes   CipherType = 1    //aes加密方式
-	PrivateIDPrefix            = "kp" //私钥前缀
+	CipherTypeAes   CipherType = 1      //aes加密方式
+	CipherOnlyKey   CipherType = 1 << 7 //如果只有私钥key（非派生密钥)
+	PrivateIDPrefix            = "kp"   //私钥前缀
 )
+
+//GetCipherType 获取类型
+func GetCipherType(t CipherType) CipherType {
+	return (t & 0xF)
+}
+
+//IsCipherOnlyKey 是否只有key(不是从DeterKey派生而来)
+func IsCipherOnlyKey(t CipherType) bool {
+	return t&CipherOnlyKey != 0
+}
 
 //GetPrivateID 获取私钥ID
 func GetPrivateID(pkh xginx.HASH160) string {
@@ -37,12 +48,38 @@ func GetPrivateID(pkh xginx.HASH160) string {
 	return id
 }
 
+//NewPrivateFrom 从区块私钥创建
+func NewPrivateFrom(uid primitive.ObjectID, pri *xginx.PrivateKey, exptime time.Duration, desc string, pass ...string) (*TPrivate, error) {
+	dp := &TPrivate{}
+	pub := pri.PublicKey()
+	dp.Pks = pub.GetPks()
+	dp.Pkh = dp.Pks.Hash()
+	dp.ID = GetPrivateID(dp.Pkh)
+	dp.UserID = uid
+	if len(pass) > 0 && pass[0] != "" {
+		dp.Cipher = CipherOnlyKey | CipherTypeAes
+	} else {
+		dp.Cipher = CipherOnlyKey | CipherTypeNone
+	}
+	dp.Desc = desc
+	dp.Time = time.Now().Unix()
+	//CipherOnlyKey 类型直接保存私钥
+	keys, err := pri.Dump(pass...)
+	if err != nil {
+		return nil, err
+	}
+	dp.Keys = keys
+	//设置过期时间
+	dp.ExpTime = time.Now().Add(exptime).Unix()
+	return dp, nil
+}
+
 //NewPrivate 创建一个私钥
-func NewPrivate(uid primitive.ObjectID, exptime time.Duration, idx uint32, dk *DeterKey, desc string, pass ...string) *TPrivate {
+func NewPrivate(uid primitive.ObjectID, exptime time.Duration, idx uint32, dk *DeterKey, desc string, pass ...string) (*TPrivate, error) {
 	dp := &TPrivate{}
 	ndk, err := dk.New(idx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	dp.Pks = ndk.GetPks()
 	dp.Pkh = dp.Pks.Hash()
@@ -58,12 +95,12 @@ func NewPrivate(uid primitive.ObjectID, exptime time.Duration, idx uint32, dk *D
 	dp.Time = time.Now().Unix()
 	keys, err := ndk.Dump(pass...)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	dp.Keys = keys
 	//设置过期时间
 	dp.ExpTime = time.Now().Add(exptime).Unix()
-	return dp
+	return dp, nil
 }
 
 //NewPrivate 新建并写入私钥
@@ -74,18 +111,25 @@ func (user *TUser) NewPrivate(db IDbImp, exp time.Duration, desc string, pass ..
 	//如果是两个密码，第一个为主私钥密码, 第二个新私钥密码
 	upass := []string{}
 	kpass := []string{}
-	if len(pass) == 2 {
+	if len(pass) >= 2 {
 		upass = []string{pass[0]}
 		kpass = []string{pass[1]}
 	} else if len(pass) == 1 {
 		upass = []string{pass[0]}
 		kpass = []string{pass[0]}
+	} else {
+		upass = []string{}
+		kpass = []string{}
 	}
+	//从用户主私钥创建一个新的私钥
 	dk, err := user.GetDeterKey(upass...)
 	if err != nil {
 		return nil, err
 	}
-	ptr := NewPrivate(user.ID, exp, user.Idx, dk, desc, kpass...)
+	ptr, err := NewPrivate(user.ID, exp, user.Idx, dk, desc, kpass...)
+	if err != nil {
+		return nil, err
+	}
 	err = db.InsertPrivate(ptr)
 	if err != nil {
 		return nil, err
@@ -129,7 +173,10 @@ func (p *TPrivate) New(db IDbImp, exp time.Duration, desc string, pass ...string
 	if err != nil {
 		return nil, err
 	}
-	pri := NewPrivate(p.UserID, exp, p.Idx, dk, desc, pass...)
+	pri, err := NewPrivate(p.UserID, exp, p.Idx, dk, desc, pass...)
+	if err != nil {
+		return nil, err
+	}
 	err = db.InsertPrivate(pri)
 	if err != nil {
 		return nil, err
@@ -142,11 +189,24 @@ func (p *TPrivate) New(db IDbImp, exp time.Duration, desc string, pass ...string
 	return pri, nil
 }
 
+//GetCipherType 获取私钥类型
+func (p *TPrivate) GetCipherType() CipherType {
+	return GetCipherType(p.Cipher)
+}
+
+//IsCipherOnlyKey 如果只包含私钥
+func (p *TPrivate) IsCipherOnlyKey() bool {
+	return IsCipherOnlyKey(p.Cipher)
+}
+
 //ToPrivate  根据加密方式暂时解密生成私钥对象
 func (p *TPrivate) ToPrivate(pass ...string) (*xginx.PrivateKey, error) {
 	//如果有加密，密码不能为空
-	if p.Cipher == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
+	if p.GetCipherType() == CipherTypeAes && (len(pass) == 0 || pass[0] == "") {
 		return nil, errors.New("miss keys pass")
+	}
+	if p.IsCipherOnlyKey() {
+		return xginx.LoadPrivateKey(p.Keys, pass...)
 	}
 	dk, err := p.GetDeter(pass...)
 	if err != nil {
@@ -159,6 +219,7 @@ func (ctx *dbimp) SetPrivateKeyPass(uid primitive.ObjectID, pid string, old stri
 	if !ctx.IsTx() {
 		return errors.New("use tx")
 	}
+	col := ctx.table(TPrivatesName)
 	pri, err := ctx.GetPrivate(pid)
 	if err != nil {
 		return err
@@ -166,16 +227,27 @@ func (ctx *dbimp) SetPrivateKeyPass(uid primitive.ObjectID, pid string, old stri
 	if !ObjectIDEqual(pri.UserID, uid) {
 		return errors.New("can't update key pass")
 	}
-	dk, err := pri.GetDeter(old)
-	if err != nil {
-		return err
+	if pri.IsCipherOnlyKey() {
+		xpri, err := pri.ToPrivate(old)
+		if err != nil {
+			return err
+		}
+		keys, err := xpri.Dump(new)
+		if err != nil {
+			return err
+		}
+		_, err = col.UpdateOne(ctx, bson.M{"_id": pri.ID, "uid": uid}, bson.M{"$set": bson.M{"keys": keys}})
+	} else {
+		dk, err := pri.GetDeter(old)
+		if err != nil {
+			return err
+		}
+		keys, err := dk.Dump(new)
+		if err != nil {
+			return err
+		}
+		_, err = col.UpdateOne(ctx, bson.M{"_id": pri.ID, "uid": uid}, bson.M{"$set": bson.M{"keys": keys}})
 	}
-	keys, err := dk.Dump(new)
-	if err != nil {
-		return err
-	}
-	col := ctx.table(TPrivatesName)
-	_, err = col.UpdateOne(ctx, bson.M{"_id": pri.ID, "uid": uid}, bson.M{"$set": bson.M{"keys": keys}})
 	return err
 }
 

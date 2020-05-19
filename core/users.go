@@ -2,6 +2,8 @@ package core
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -29,7 +31,7 @@ type TUser struct {
 //mobile 手机号
 //upass 登陆密码
 //kpass 存在设置密钥加密密码
-func NewUser(mobile string, upass string, kpass ...string) *TUser {
+func NewUser(mobile string, upass string, kpass ...string) (*TUser, error) {
 	ndk := NewDeterKey()
 	u := &TUser{}
 	u.ID = primitive.NewObjectID()
@@ -41,12 +43,44 @@ func NewUser(mobile string, upass string, kpass ...string) *TUser {
 	}
 	keys, err := ndk.Dump(kpass...)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	u.Keys = keys
 	u.Idx = 0
 	u.Pass = xginx.Hash256From([]byte(upass))
-	return u
+	return u, nil
+}
+
+//ImportAccount 导入账户
+func (u *TUser) ImportAccount(db IDbImp, acc *xginx.Account, exp time.Duration, desc string, tags []string, pass ...string) (*TAccount, error) {
+	if !db.IsTx() {
+		return nil, fmt.Errorf("must use tx")
+	}
+	nacc, err := NewAccountFrom([]primitive.ObjectID{u.ID}, acc, desc, tags)
+	if err != nil {
+		return nil, err
+	}
+	//保存私钥
+	for pkh, pri := range acc.Pris {
+		id := GetPrivateID(pkh)
+		//如果存在
+		_, err := db.GetPrivate(id)
+		if err == nil {
+			continue
+		}
+		pri, err := NewPrivateFrom(u.ID, pri, exp, "import", pass...)
+		if err != nil {
+			return nil, err
+		}
+		//保存导入账户的ID
+		pri.ParentID = string(nacc.ID)
+		err = db.InsertPrivate(pri)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = db.InsertAccount(nacc)
+	return nacc, err
 }
 
 //GetDeterKey 获取密钥

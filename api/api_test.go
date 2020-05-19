@@ -70,8 +70,11 @@ func (st *APITestSuite) SetupSuite() {
 			sdb.DeleteUser(u.ID)
 		}
 		//创建测试用户A
-		a := core.NewUser(st.A, "xh0714")
-		err := sdb.InsertUser(a)
+		a, err := core.NewUser(st.A, "xh0714")
+		if err != nil {
+			return err
+		}
+		err = sdb.InsertUser(a)
 		if err != nil {
 			return err
 		}
@@ -86,7 +89,10 @@ func (st *APITestSuite) SetupSuite() {
 		//生成101个测试区块
 		st.bi = xginx.NewTestBlockIndex(101, aa.GetAddress())
 		//创建测试用户B
-		b := core.NewUser(st.B, "xh0714")
+		b, err := core.NewUser(st.B, "xh0714")
+		if err != nil {
+			return err
+		}
 		err = sdb.InsertUser(b)
 		if err != nil {
 			return err
