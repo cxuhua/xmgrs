@@ -8,9 +8,49 @@ import (
 	"github.com/cxuhua/xginx"
 
 	"github.com/cxuhua/xmgrs/core"
+	"github.com/cxuhua/xmgrs/util"
 
 	"github.com/gin-gonic/gin"
 )
+
+//导出地址账户
+func importAccountAPI(c *gin.Context) {
+	args := struct {
+		Body string   `form:"body" binding:"required"` //推送id
+		Pass []string `form:"pass"`                    //如果导入的存在密钥存储也会加密
+		Desc string   `form:"desc"`                    //描述
+		Tags []string `form:"tags"`                    //标签
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	acc, err := xginx.LoadAccount(args.Body, args.Pass...)
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(101, err))
+		return
+	}
+	var id xginx.Address
+	app := core.GetApp(c)
+	uid := GetAppUserID(c)
+	err = app.UseTx(func(db core.IDbImp) error {
+		user, err := db.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
+		tacc, err := user.ImportAccount(db, acc, core.DefaultExpTime, args.Desc, args.Tags, args.Pass...)
+		if err != nil {
+			return err
+		}
+		id = tacc.ID
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	c.JSON(http.StatusOK, NewModel(0, id))
+}
 
 // 设置用户推送id
 func setUserPushIDAPI(c *gin.Context) {
@@ -107,14 +147,13 @@ func signTxAPI(c *gin.Context) {
 
 //TTxModel 交易model
 type TTxModel struct {
-	ID       string        `json:"id"`
-	Ver      uint32        `json:"ver"`
-	Ins      []TxInModel   `json:"ins"`
-	Outs     []TxOutModel  `json:"outs"`
-	LockTime uint32        `json:"lt"`
-	Time     int64         `json:"time"`
-	Desc     string        `json:"desc"`
-	State    core.TTxState `json:"state"`
+	ID    string        `json:"id"`
+	Ver   uint32        `json:"ver"`
+	Ins   []interface{} `json:"ins"`
+	Outs  []TxOutModel  `json:"outs"`
+	Time  int64         `json:"time"`
+	Desc  string        `json:"desc"`
+	State core.TTxState `json:"state"`
 }
 
 //NewTTxModel 创建交易model
@@ -122,25 +161,18 @@ func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 	m := TTxModel{
 		ID:    xginx.NewHASH256(ttx.ID).String(),
 		Ver:   ttx.Ver,
-		Ins:   []TxInModel{},
+		Ins:   []interface{}{},
 		Outs:  []TxOutModel{},
 		Time:  ttx.Time,
 		Desc:  ttx.Desc,
 		State: ttx.State,
 	}
 	for _, in := range ttx.Ins {
-		out, err := in.ToTxIn().LoadTxOut(bi)
-		if err != nil {
-			panic(err)
-		}
-		addr, err := out.Script.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-		inv := TxInModel{
-			Addr:  addr,
-			Value: out.Value,
-		}
+		inv := TxInModel{}
+		inv.OutID = xginx.NewHASH256(in.OutHash).String()
+		inv.OutIndex = in.OutIndex
+		inv.Script = util.ScriptToStr(in.Script)
+		inv.Sequence = in.Sequence
 		m.Ins = append(m.Ins, inv)
 	}
 	for _, out := range ttx.Outs {
@@ -412,8 +444,10 @@ func userInfoAPI(c *gin.Context) {
 	type result struct {
 		Model
 		Mobile string       `json:"mobile"`
-		Coins  xginx.Amount `json:"coins"` //可用余额
-		Locks  xginx.Amount `json:"locks"` //锁定的
+		Coins  xginx.Amount `json:"coins"`  //可用余额
+		Locks  xginx.Amount `json:"locks"`  //锁定的int
+		Cipher int          `json:"cipher"` //key加密方式
+		Index  uint32       `json:"index"`  //keys idx
 	}
 	res := result{}
 	err := app.UseDb(func(db core.IDbImp) error {
@@ -428,12 +462,11 @@ func userInfoAPI(c *gin.Context) {
 			res.Code = 101
 			return err
 		}
-		//可用的
 		res.Coins = coins.Coins.Balance()
-		//锁定的
 		res.Locks = coins.Locks.Balance()
-		//
 		res.Mobile = user.Mobile
+		res.Cipher = int(user.Cipher)
+		res.Index = user.Idx
 		return nil
 	})
 	if err != nil {

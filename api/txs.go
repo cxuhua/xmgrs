@@ -79,10 +79,17 @@ func ParseAddrValue(s string) (AddrValue, error) {
 
 //TxInModel 输出model
 type TxInModel struct {
-	Addr     xginx.Address `json:"addr"`   //coinbase地址是空的
-	Value    xginx.Amount  `json:"value"`  //coinbasevalue是空的
-	Script   string        `json:"script"` //输出脚本
-	Sequence uint32        `json:"sequence"`
+	Coinbase bool   `json:"coinbase"` //是否是coinbase输入
+	OutID    string `json:"out"`      //引用id
+	OutIndex uint32 `json:"index"`    //引用索引
+	Script   string `json:"script"`   //输出脚本
+	Sequence uint32 `json:"sequence"` //序列号
+}
+
+//TxCoinbaseModel CoinbaseModel
+type TxCoinbaseModel struct {
+	Coinbase bool   `json:"coinbase"` //是否是coinbase输入
+	Script   string `json:"script"`   //输出脚本
 }
 
 //TxOutModel 输出model
@@ -94,19 +101,21 @@ type TxOutModel struct {
 
 //TxModel 交易model
 type TxModel struct {
-	Ver     uint32       `json:"ver"`
-	Ins     []TxInModel  `json:"ins"` //为空是coinbase交易
-	Outs    []TxOutModel `json:"outs"`
-	Script  string       `json:"script"`  //交易脚本
-	Confirm uint32       `json:"confirm"` //确认数 =0 表示在交易池中
-	BlkTime uint32       `json:"time"`    //区块时间戳
+	ID      string        `json:"id"` //交易id
+	Ver     uint32        `json:"ver"`
+	Ins     []interface{} `json:"ins"` //为空是coinbase交易
+	Outs    []TxOutModel  `json:"outs"`
+	Script  string        `json:"script"`  //交易脚本
+	Confirm uint32        `json:"confirm"` //确认数 =0 表示在交易池中
+	BlkTime uint32        `json:"time"`    //区块时间戳
 }
 
 //NewTxModel 创建model
 func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxModel {
 	m := TxModel{
+		ID:     tx.MustID().String(),
 		Ver:    tx.Ver.ToUInt32(),
-		Ins:    []TxInModel{},
+		Ins:    []interface{}{},
 		Outs:   []TxOutModel{},
 		Script: util.ScriptToStr(tx.Script),
 	}
@@ -118,24 +127,20 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 		m.BlkTime = 0
 	}
 	for _, in := range tx.Ins {
-		inv := TxInModel{
-			Script: util.ScriptToStr(in.Script),
-		}
 		if in.IsCoinBase() {
+			cvv := TxCoinbaseModel{
+				Coinbase: true,
+				Script:   util.ScriptToStr(in.Script),
+			}
+			m.Ins = append(m.Ins, cvv)
+		} else {
+			inv := TxInModel{}
+			inv.OutID = in.OutHash.String()
+			inv.OutIndex = in.OutIndex.ToUInt32()
+			inv.Script = util.ScriptToStr(in.Script)
+			inv.Sequence = in.Sequence.ToUInt32()
 			m.Ins = append(m.Ins, inv)
-			continue
 		}
-		out, err := in.LoadTxOut(bi)
-		if err != nil {
-			panic(err)
-		}
-		addr, err := out.Script.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-		inv.Addr = addr
-		inv.Value = out.Value
-		m.Ins = append(m.Ins, inv)
 	}
 	for _, out := range tx.Outs {
 		addr, err := out.Script.GetAddress()
@@ -374,8 +379,11 @@ func createUserPrivateAPI(c *gin.Context) {
 	uid := GetAppUserID(c)
 	type item struct {
 		ID     string `json:"id"`
+		Parent string `json:"parent"`
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
+		Index  uint32 `json:"index"`
+		Exp    int64  `json:"exp"`
 		Time   int64  `json:"time"`
 	}
 	type result struct {
@@ -394,9 +402,12 @@ func createUserPrivateAPI(c *gin.Context) {
 		}
 		i := item{}
 		i.ID = pri.ID
+		i.Parent = pri.ParentID
+		i.Index = pri.Idx
 		i.Desc = pri.Desc
 		i.Cipher = int(pri.Cipher)
 		i.Time = pri.Time
+		i.Exp = pri.ExpTime
 		m.Item = i
 		return nil
 	})
@@ -413,8 +424,11 @@ func listPrivatesAPI(c *gin.Context) {
 	uid := GetAppUserID(c)
 	type item struct {
 		ID     string `json:"id"`
+		Parent string `json:"parent"`
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
+		Index  uint32 `json:"index"`
+		Exp    int64  `json:"exp"`
 		Time   int64  `json:"time"`
 	}
 	type result struct {
@@ -433,9 +447,12 @@ func listPrivatesAPI(c *gin.Context) {
 		for _, v := range pris {
 			i := item{
 				ID:     v.ID,
+				Parent: v.ParentID,
 				Desc:   v.Desc,
 				Cipher: int(v.Cipher),
+				Index:  v.Idx,
 				Time:   v.Time,
+				Exp:    v.ExpTime,
 			}
 			res.Items = append(res.Items, i)
 		}

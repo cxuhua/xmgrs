@@ -19,28 +19,28 @@ func ScriptToStr(script xginx.Script) string {
 		return ""
 	}
 	if script.IsCoinBase() {
-		return fmt.Sprintf("COINBASE %s", Hex(script[1:]))
+		return fmt.Sprintf("COINBASE %s", Hex(script))
 	}
 	if script.IsWitness() {
 		wits, err := script.ToWitness()
 		if err != nil {
 			return fmt.Sprintf("ERROR %s", Hex(script))
 		}
-		return fmt.Sprintf("WITNESS %d %d %d ADDRESS=%s {%s} %s", wits.Num, wits.Less, wits.Arb, wits.Address(), string(wits.Exec), Hex(script[1:]))
+		return fmt.Sprintf("WITNESS %d %d %d ADDRESS=%s {%s} %s", wits.Num, wits.Less, wits.Arb, wits.Address(), string(wits.Exec), Hex(script))
 	}
 	if script.IsLocked() {
 		lcks, err := script.ToLocked()
 		if err != nil {
 			return fmt.Sprintf("ERROR %s", Hex(script))
 		}
-		return fmt.Sprintf("LOCKED ADDRESS=%s {%s} %s", lcks.Address(), string(lcks.Exec), Hex(script[1:]))
+		return fmt.Sprintf("LOCKED ADDRESS=%s {%s} %s", lcks.Address(), string(lcks.Exec), Hex(script))
 	}
 	if script.IsTxScript() {
 		txs, err := script.ToTxScript()
 		if err != nil {
 			return fmt.Sprintf("ERROR %s", Hex(script))
 		}
-		return fmt.Sprintf("TXSCRIPT {%s} %s", string(txs.Exec), Hex(script[1:]))
+		return fmt.Sprintf("TXSCRIPT {%s} %s", string(txs.Exec), Hex(script))
 	}
 	return "TYPE ERROR"
 }

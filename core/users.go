@@ -60,6 +60,9 @@ func (u *TUser) ImportAccount(db IDbImp, acc *xginx.Account, exp time.Duration, 
 	if err != nil {
 		return nil, err
 	}
+	if _, err := db.GetAccount(nacc.ID); err == nil {
+		return nil, fmt.Errorf("account %s exists", nacc.ID)
+	}
 	//保存私钥
 	for pkh, pri := range acc.Pris {
 		id := GetPrivateID(pkh)
