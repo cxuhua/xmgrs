@@ -22,8 +22,19 @@ type AddrValue struct {
 	OutScript string        //输出脚本
 }
 
-func (av AddrValue) String() string {
+//Format 格式化
+func (av AddrValue) Format() string {
+	//地址->金额,脚本
 	return fmt.Sprintf("%s->%d,%s", av.Addr, av.Value, av.OutScript)
+}
+
+//解析地址第一个 -> 之前的部分和之后的部分返回
+func parseValueAddress(s string) (string, string) {
+	p := strings.Index(s, "->")
+	if p < 0 {
+		return "", ""
+	}
+	return s[:p], s[p+2:]
 }
 
 //解析 金额和定制的输出脚本,第一个,号之后的全是脚本
@@ -42,11 +53,11 @@ func parseValueScript(s string) (string, string) {
 //ParseAddrValue 解析addr->amount格式
 func ParseAddrValue(s string) (AddrValue, error) {
 	av := AddrValue{}
-	v := strings.Split(s, "->")
-	if len(v) != 2 {
+	addr, vss := parseValueAddress(s)
+	if addr == "" || vss == "" {
 		return av, errors.New("dst format error")
 	}
-	amts, outs := parseValueScript(v[1])
+	amts, outs := parseValueScript(vss)
 	if amts == "" {
 		return av, errors.New("amount string miss")
 	}
@@ -61,7 +72,7 @@ func ParseAddrValue(s string) (AddrValue, error) {
 	if !amt.IsRange() {
 		return av, errors.New("amount range error")
 	}
-	av.Addr = xginx.Address(v[0])
+	av.Addr = xginx.Address(addr)
 	err = av.Addr.Check()
 	if err != nil {
 		return av, err

@@ -8,7 +8,13 @@ import (
 )
 
 func TestParseValueScript(t *testing.T) {
-	s := "111"
+	s := "aa->100,scr->,->,,"
+	a1, v1 := parseValueAddress(s)
+	if a1 != "aa" || v1 != "100,scr->,->,," {
+		t.Fatal("t4 error")
+	}
+
+	s = "111"
 	s1, s2 := parseValueScript(s)
 	if s1 == "" && s2 == "" {
 		t.Fatal("empty error")
@@ -32,6 +38,7 @@ func TestParseValueScript(t *testing.T) {
 	if s1 != "333" || s2 != "444" {
 		t.Fatal("t3 error")
 	}
+
 }
 
 func (st *APITestSuite) NewTx() {
@@ -44,7 +51,7 @@ func (st *APITestSuite) NewTx() {
 		Value:     1 * xginx.Coin,
 		OutScript: string(xginx.DefaultLockedScript),
 	}
-	v.Add("dst", dst.String())
+	v.Add("dst", dst.Format())
 	v.Set("fee", "10")
 	v.Set("desc", "this is desc")
 	v.Set("script", "return true")
