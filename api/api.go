@@ -143,4 +143,5 @@ func V1Entry(rg *gin.RouterGroup) {
 	auth.POST("/sign/tx", signTxAPI)
 	auth.POST("/submit/tx", submitTxAPI)
 	auth.POST("/import/account", importAccountAPI)
+	auth.POST("/export/account", exportAccountAPI)
 }

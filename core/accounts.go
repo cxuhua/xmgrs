@@ -116,6 +116,16 @@ type TAccount struct {
 	Desc   string               `bson:"desc"` //描述
 }
 
+//HasUserID 是否包含用户
+func (acc TAccount) HasUserID(uid primitive.ObjectID) bool {
+	for _, v := range acc.UserID {
+		if ObjectIDEqual(uid, v) {
+			return true
+		}
+	}
+	return false
+}
+
 //GetPrivate 获取第几个私钥
 func (acc TAccount) GetPrivate(db IDbImp, idx int) (*TPrivate, error) {
 	if idx < 0 || idx <= len(acc.Kid) {

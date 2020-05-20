@@ -13,11 +13,49 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//导出地址账户
+//导出账号地址
+func exportAccountAPI(c *gin.Context) {
+	args := struct {
+		ID   xginx.Address `form:"id" binding:"IsAddress"` //账号id
+		Pass []string      `form:"pass"`                   //加密密码
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	app := core.GetApp(c)
+	uid := GetAppUserID(c)
+	var dump string
+	err := app.UseTx(func(db core.IDbImp) error {
+		acc, err := db.GetAccount(args.ID)
+		if err != nil {
+			return err
+		}
+		if !acc.HasUserID(uid) {
+			return fmt.Errorf("no access")
+		}
+		xacc, err := acc.ToAccount(db, true, args.Pass...)
+		if err != nil {
+			return err
+		}
+		dump, err = xacc.Dump(true, args.Pass...)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	c.String(http.StatusOK, dump)
+}
+
+//导入地址账户
 func importAccountAPI(c *gin.Context) {
 	args := struct {
-		Body string   `form:"body" binding:"required"` //推送id
-		Pass []string `form:"pass"`                    //如果导入的存在密钥存储也会加密
+		Body string   `form:"body" binding:"required"` //内容
+		Pass []string `form:"pass"`                    //加密密码
 		Desc string   `form:"desc"`                    //描述
 		Tags []string `form:"tags"`                    //标签
 	}{}
