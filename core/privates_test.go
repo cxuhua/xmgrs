@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/cxuhua/xginx"
 
@@ -48,7 +47,7 @@ func TestNewPrivate(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		dp, err := user.NewPrivate(db, time.Hour*24*365, "测试私钥1", "1111")
+		dp, err := user.NewPrivate(db, "测试私钥1", "1111")
 		if err != nil {
 			return err
 		}

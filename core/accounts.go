@@ -26,7 +26,7 @@ func SaveAccount(db IDbImp, user *TUser, num uint8, less uint8, arb bool, desc s
 	}
 	ids := []string{}
 	for i := 0; i < int(num); i++ {
-		pri, err := user.NewPrivate(db, DefaultExpTime, "自动创建")
+		pri, err := user.NewPrivate(db, "自动创建")
 		if err != nil {
 			return nil, err
 		}

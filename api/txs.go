@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cxuhua/xmgrs/util"
 
@@ -364,16 +363,12 @@ func createAccountAPI(c *gin.Context) {
 //创建一个私钥
 func createUserPrivateAPI(c *gin.Context) {
 	args := struct {
-		Desc string        `form:"desc"` //私钥描述
-		Pass []string      `form:"pass"` //私钥密码,如果有密码必须一致
-		Exp  time.Duration `form:"exp"`  //过期时间 单位:秒
+		Desc string   `form:"desc"` //私钥描述
+		Pass []string `form:"pass"` //私钥密码,如果有密码必须一致
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
-	}
-	if args.Exp == 0 {
-		args.Exp = core.DefaultExpTime
 	}
 	app := core.GetApp(c)
 	uid := GetAppUserID(c)
@@ -383,7 +378,6 @@ func createUserPrivateAPI(c *gin.Context) {
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
 		Index  uint32 `json:"index"`
-		Exp    int64  `json:"exp"`
 		Time   int64  `json:"time"`
 	}
 	type result struct {
@@ -396,7 +390,7 @@ func createUserPrivateAPI(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		pri, err := user.NewPrivate(db, args.Exp, args.Desc, args.Pass...)
+		pri, err := user.NewPrivate(db, args.Desc, args.Pass...)
 		if err != nil {
 			return err
 		}
@@ -407,7 +401,6 @@ func createUserPrivateAPI(c *gin.Context) {
 		i.Desc = pri.Desc
 		i.Cipher = int(pri.Cipher)
 		i.Time = pri.Time
-		i.Exp = pri.ExpTime
 		m.Item = i
 		return nil
 	})
@@ -428,7 +421,6 @@ func listPrivatesAPI(c *gin.Context) {
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
 		Index  uint32 `json:"index"`
-		Exp    int64  `json:"exp"`
 		Time   int64  `json:"time"`
 	}
 	type result struct {
@@ -452,7 +444,6 @@ func listPrivatesAPI(c *gin.Context) {
 				Cipher: int(v.Cipher),
 				Index:  v.Idx,
 				Time:   v.Time,
-				Exp:    v.ExpTime,
 			}
 			res.Items = append(res.Items, i)
 		}

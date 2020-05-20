@@ -56,6 +56,7 @@ func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) (*xginx.Account, error
 		return nil, err
 	}
 	//只需要账号信息，不需要私钥
+	//要分析需要哪些签名
 	return acc.ToAccount(st.db, false)
 }
 

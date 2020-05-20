@@ -3,7 +3,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/cxuhua/xginx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -52,7 +51,7 @@ func NewUser(mobile string, upass string, kpass ...string) (*TUser, error) {
 }
 
 //ImportAccount 导入账户
-func (u *TUser) ImportAccount(db IDbImp, acc *xginx.Account, exp time.Duration, desc string, tags []string, pass ...string) (*TAccount, error) {
+func (u *TUser) ImportAccount(db IDbImp, acc *xginx.Account, desc string, tags []string, pass ...string) (*TAccount, error) {
 	if !db.IsTx() {
 		return nil, fmt.Errorf("must use tx")
 	}
@@ -71,7 +70,7 @@ func (u *TUser) ImportAccount(db IDbImp, acc *xginx.Account, exp time.Duration, 
 		if err == nil {
 			continue
 		}
-		pri, err := NewPrivateFrom(u.ID, pri, exp, "import", pass...)
+		pri, err := NewPrivateFrom(u.ID, pri, "import", pass...)
 		if err != nil {
 			return nil, err
 		}

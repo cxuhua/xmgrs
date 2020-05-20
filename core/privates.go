@@ -14,8 +14,6 @@ import (
 //私钥表名
 const (
 	TPrivatesName = "privates"
-	//默认过期时间为一年
-	DefaultExpTime = time.Hour * 24 * 365
 )
 
 //CipherType 私钥加密类型
@@ -49,7 +47,7 @@ func GetPrivateID(pkh xginx.HASH160) string {
 }
 
 //NewPrivateFrom 从区块私钥创建
-func NewPrivateFrom(uid primitive.ObjectID, pri *xginx.PrivateKey, exptime time.Duration, desc string, pass ...string) (*TPrivate, error) {
+func NewPrivateFrom(uid primitive.ObjectID, pri *xginx.PrivateKey, desc string, pass ...string) (*TPrivate, error) {
 	dp := &TPrivate{}
 	pub := pri.PublicKey()
 	dp.Pks = pub.GetPks()
@@ -69,13 +67,11 @@ func NewPrivateFrom(uid primitive.ObjectID, pri *xginx.PrivateKey, exptime time.
 		return nil, err
 	}
 	dp.Keys = keys
-	//设置过期时间
-	dp.ExpTime = time.Now().Add(exptime).Unix()
 	return dp, nil
 }
 
 //NewPrivate 创建一个私钥
-func NewPrivate(uid primitive.ObjectID, exptime time.Duration, idx uint32, dk *DeterKey, desc string, pass ...string) (*TPrivate, error) {
+func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, pass ...string) (*TPrivate, error) {
 	dp := &TPrivate{}
 	ndk, err := dk.New(idx)
 	if err != nil {
@@ -98,13 +94,11 @@ func NewPrivate(uid primitive.ObjectID, exptime time.Duration, idx uint32, dk *D
 		return nil, err
 	}
 	dp.Keys = keys
-	//设置过期时间
-	dp.ExpTime = time.Now().Add(exptime).Unix()
 	return dp, nil
 }
 
 //NewPrivate 新建并写入私钥
-func (user *TUser) NewPrivate(db IDbImp, exp time.Duration, desc string, pass ...string) (*TPrivate, error) {
+func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
@@ -126,7 +120,7 @@ func (user *TUser) NewPrivate(db IDbImp, exp time.Duration, desc string, pass ..
 	if err != nil {
 		return nil, err
 	}
-	ptr, err := NewPrivate(user.ID, exp, user.Idx, dk, desc, kpass...)
+	ptr, err := NewPrivate(user.ID, user.Idx, dk, desc, kpass...)
 	if err != nil {
 		return nil, err
 	}
@@ -144,22 +138,16 @@ func (user *TUser) NewPrivate(db IDbImp, exp time.Duration, desc string, pass ..
 
 //TPrivate 私钥管理
 type TPrivate struct {
-	ID       string             `bson:"_id"`     //私钥id GetPrivateId(pkh)生成
-	ParentID string             `bson:"pid"`     //父私钥id
-	UserID   primitive.ObjectID `bson:"uid"`     //所属用户
-	Cipher   CipherType         `bson:"cipher"`  //加密方式
-	Pks      xginx.PKBytes      `bson:"pks"`     //公钥
-	Pkh      xginx.HASH160      `bson:"pkh"`     //公钥hash
-	Keys     string             `bson:"keys"`    //私钥内容
-	Idx      uint32             `bson:"idx"`     //索引
-	Time     int64              `bson:"time"`    //创建时间
-	ExpTime  int64              `bson:"exptime"` //过期时间
-	Desc     string             `bson:"desc"`    //描述
-}
-
-//IsExp 私钥是否过期
-func (p *TPrivate) IsExp() bool {
-	return time.Now().Unix()-p.ExpTime >= 0
+	ID       string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
+	ParentID string             `bson:"pid"`    //父私钥id
+	UserID   primitive.ObjectID `bson:"uid"`    //所属用户
+	Cipher   CipherType         `bson:"cipher"` //加密方式
+	Pks      xginx.PKBytes      `bson:"pks"`    //公钥
+	Pkh      xginx.HASH160      `bson:"pkh"`    //公钥hash
+	Keys     string             `bson:"keys"`   //私钥内容
+	Idx      uint32             `bson:"idx"`    //索引
+	Time     int64              `bson:"time"`   //创建时间
+	Desc     string             `bson:"desc"`   //描述
 }
 
 //GetDeter 加载密钥
@@ -168,12 +156,12 @@ func (p *TPrivate) GetDeter(pass ...string) (*DeterKey, error) {
 }
 
 //New pass存在启用加密方式
-func (p *TPrivate) New(db IDbImp, exp time.Duration, desc string, pass ...string) (*TPrivate, error) {
+func (p *TPrivate) New(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
 	dk, err := p.GetDeter(pass...)
 	if err != nil {
 		return nil, err
 	}
-	pri, err := NewPrivate(p.UserID, exp, p.Idx, dk, desc, pass...)
+	pri, err := NewPrivate(p.UserID, p.Idx, dk, desc, pass...)
 	if err != nil {
 		return nil, err
 	}

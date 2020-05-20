@@ -38,7 +38,7 @@ func importAccountAPI(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		tacc, err := user.ImportAccount(db, acc, core.DefaultExpTime, args.Desc, args.Tags, args.Pass...)
+		tacc, err := user.ImportAccount(db, acc, args.Desc, args.Tags, args.Pass...)
 		if err != nil {
 			return err
 		}
