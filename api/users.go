@@ -146,7 +146,7 @@ func signTxAPI(c *gin.Context) {
 		}
 		//如果不是新交易
 		if ttx.State != core.TTxStateNew {
-			return nil
+			return fmt.Errorf("new tx can sign")
 		}
 		//获取需要我签名的信息
 		sigs, err := db.ListUserSigs(uid, id)
@@ -171,8 +171,6 @@ func signTxAPI(c *gin.Context) {
 		//如果签名验证成功,更新为已经签名，否则需要等待所有签名执行完成
 		if ttx.Verify(db, bi) {
 			err = ttx.SetTxState(db, core.TTxStateSign)
-		} else {
-			err = fmt.Errorf("ttx verify error %v", args.ID)
 		}
 		return err
 	})
