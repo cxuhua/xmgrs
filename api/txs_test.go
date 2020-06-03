@@ -52,7 +52,7 @@ func (st *APITestSuite) NewTx() {
 		OutScript: string(xginx.DefaultLockedScript),
 	}
 	v.Add("dst", dst.Format())
-	v.Set("fee", "10")
+	v.Set("fee", "0.01")
 	v.Set("desc", "this is desc")
 	v.Set("script", "return true")
 	any, err := st.Post("/v1/new/tx", v)
