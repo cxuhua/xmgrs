@@ -64,6 +64,13 @@ func IsScript(fl validator.FieldLevel) bool {
 	return err == nil
 }
 
+//IsAmount 字段是否是合法的金额
+func IsAmount(fl validator.FieldLevel) bool {
+	str := fl.Field().String()
+	_, err := xginx.ParseAmount(str)
+	return err == nil
+}
+
 //InitEngine 获取默认gin引擎
 func InitEngine(ctx context.Context) *gin.Engine {
 	//注册自定义校验器
@@ -72,6 +79,7 @@ func InitEngine(ctx context.Context) *gin.Engine {
 		v.RegisterValidation("HexHash160", HexHash160)
 		v.RegisterValidation("IsAddress", IsAddress)
 		v.RegisterValidation("IsScript", IsScript)
+		v.RegisterValidation("IsAmount", IsAmount)
 	}
 	//
 	m := gin.New()

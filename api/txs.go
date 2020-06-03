@@ -65,7 +65,7 @@ func ParseAddrValue(s string) (AddrValue, error) {
 	if outs == "" {
 		outs = string(xginx.DefaultLockedScript)
 	}
-	amt, err := xginx.ParseMoney(amts)
+	amt, err := xginx.ParseAmount(amts)
 	if err != nil {
 		return av, err
 	}
@@ -256,7 +256,7 @@ func submitTxAPI(c *gin.Context) {
 func createTxAPI(c *gin.Context) {
 	args := struct {
 		Dst    []string `form:"dst" binding:"gt=0"`        //addr->amount 向addr转amount个,使用script脚本
-		Fee    string   `form:"fee" binding:"gte=0"`       //交易费
+		Fee    string   `form:"fee" binding:"IsAmount"`    //交易费
 		Desc   string   `form:"desc"`                      //描述
 		Script string   `form:"script" binding:"IsScript"` //交易脚本
 	}{}
@@ -264,7 +264,7 @@ func createTxAPI(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
-	fee, err := xginx.ParseMoney(args.Fee)
+	fee, err := xginx.ParseAmount(args.Fee)
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(101, err))
 		return
