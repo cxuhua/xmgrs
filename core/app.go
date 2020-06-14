@@ -34,14 +34,14 @@ const (
 
 /*
 //数据库索引
-db.accounts.ensureIndex({uid:1})
-db.accounts.ensureIndex({tags:1})
-db.accounts.ensureIndex({pkh:1})
-db.privates.ensureIndex({uid:1})
-db.txs.ensureIndex({uid:1})
-db.users.ensureIndex({mobile:1})
-db.sigs.ensureIndex({tid:1})
-db.sigs.ensureIndex({uid:1})
+db.accounts.createIndex({uid:1})
+db.accounts.createIndex({tags:1})
+db.accounts.createIndex({pkh:1})
+db.privates.createIndex({uid:1})
+db.txs.createIndex({uid:1})
+db.users.createIndex({mobile:1})
+db.sigs.createIndex({tid:1})
+db.sigs.createIndex({uid:1})
 */
 
 //数据连接地址
