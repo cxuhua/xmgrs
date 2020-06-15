@@ -25,7 +25,7 @@ type AddrValue struct {
 //Format 格式化
 func (av AddrValue) Format() string {
 	//地址->金额,脚本
-	return fmt.Sprintf("%s->%d,%s", av.Addr, av.Value, av.OutScript)
+	return fmt.Sprintf("%v->%v,%s", av.Addr, av.Value, av.OutScript)
 }
 
 //解析地址第一个 -> 之前的部分和之后的部分返回
@@ -65,7 +65,7 @@ func ParseAddrValue(s string) (AddrValue, error) {
 	if outs == "" {
 		outs = string(xginx.DefaultLockedScript)
 	}
-	amt, err := xginx.ParseIntMoney(amts)
+	amt, err := xginx.ParseAmount(amts)
 	if err != nil {
 		return av, err
 	}
@@ -255,20 +255,25 @@ func submitTxAPI(c *gin.Context) {
 //创建交易
 func createTxAPI(c *gin.Context) {
 	args := struct {
-		Dst    []string     `form:"dst" binding:"gt=0"`        //addr->amount 向addr转amount个,使用script脚本
-		Fee    xginx.Amount `form:"fee" binding:"gte=0"`       //交易费
-		Desc   string       `form:"desc"`                      //描述
-		Script string       `form:"script" binding:"IsScript"` //交易脚本
+		Dst    []string `form:"dst" binding:"gt=0"`        //addr->amount 向addr转amount个,使用script脚本
+		Fee    string   `form:"fee" binding:"IsAmount"`    //交易费
+		Desc   string   `form:"desc"`                      //描述
+		Script string   `form:"script" binding:"IsScript"` //交易脚本
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	fee, err := xginx.ParseAmount(args.Fee)
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(101, err))
 		return
 	}
 	app := core.GetApp(c)
 	uid := GetAppUserID(c)
 	bi := xginx.GetBlockIndex()
 	var ttx *core.TTx = nil
-	err := app.UseTx(func(db core.IDbImp) error {
+	err = app.UseTx(func(db core.IDbImp) error {
 		user, err := db.GetUserInfo(uid)
 		if err != nil {
 			return err
@@ -282,7 +287,7 @@ func createTxAPI(c *gin.Context) {
 			}
 			mi.Add(av.Addr, av.Value, xginx.Script(av.OutScript))
 		}
-		mi.Fee = args.Fee
+		mi.Fee = fee
 		tx, err := mi.NewTx(0, []byte(args.Script))
 		if err != nil {
 			return err

@@ -77,7 +77,7 @@ func (st *TxsTestSuite) TestNewTx() {
 	//向dst转账1COIN
 	mi.Add(dst, 1*xginx.Coin, xginx.DefaultLockedScript)
 	//1000作为交易费
-	mi.Fee = 1000
+	mi.Fee = 1 * xginx.Coin
 	tx, err := mi.NewTx(0, xginx.DefaultTxScript)
 	st.Require().NoError(err)
 	//2-2账户会生成两个签名

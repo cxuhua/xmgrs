@@ -10,11 +10,11 @@ require (
 	github.com/cxuhua/xginx v0.0.1
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/form/v4 v4.1.1
-	github.com/go-redis/redis/v7 v7.2.0
-	github.com/json-iterator/go v1.1.9
+	github.com/go-playground/validator/v10 v10.3.0
+	github.com/go-redis/redis/v7 v7.4.0
+	github.com/json-iterator/go v1.1.10
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/xdg/stringprep v1.0.0 // indirect
-	go.mongodb.org/mongo-driver v1.3.3
-	github.com/go-playground/validator/v10 v10.2.0
+	go.mongodb.org/mongo-driver v1.3.4
 )
