@@ -405,6 +405,7 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 //ListUserTxs 获取用户需要处理的交易
 //sign 是否签名
 func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error) {
+	bi := xginx.GetBlockIndex()
 	ids := map[xginx.HASH256]bool{}
 	//获取需要uid签名的记录
 	col := ctx.table(TSigName)
@@ -430,6 +431,10 @@ func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	for tid := range ids {
 		tx, err := ctx.GetTx(tid[:])
 		if err != nil {
+			continue
+		}
+		//如果获取的是未签名的，并且已经验证成功，不返回这个交易
+		if !sign && tx.Verify(ctx, bi) {
 			continue
 		}
 		txs = append(txs, tx)
