@@ -26,30 +26,31 @@ type IRedisImp interface {
 type redisImp struct {
 	context.Context
 	rcli *redis.Client
+	conn *redis.Conn
 }
 
-func (conn *redisImp) DelUserID(k string) error {
-	return conn.rcli.Del(k).Err()
+func (rimp *redisImp) DelUserID(k string) error {
+	return rimp.conn.Del(k).Err()
 }
 
-// Subscribe 开始利用redis订阅，成功后返回订阅
+// Subscribe 开始利用redis订阅，成功后返回订阅连接
 // 发布消息使用 IRidisImp Publish
-func (conn *redisImp) Subscribe(channels ...string) *redis.PubSub {
-	return conn.rcli.Subscribe(channels...)
+func (rimp *redisImp) Subscribe(channels ...string) *redis.PubSub {
+	return rimp.rcli.Subscribe(channels...)
 }
 
-func (conn *redisImp) Publish(channel string, message interface{}) error {
-	return conn.rcli.Publish(channel, message).Err()
+func (rimp *redisImp) Publish(channel string, message interface{}) error {
+	return rimp.conn.Publish(channel, message).Err()
 }
 
 //SetUserId 保存用户id
-func (conn *redisImp) SetUserID(k string, id primitive.ObjectID, time time.Duration) error {
-	return conn.rcli.Set(k, id.Hex(), time).Err()
+func (rimp *redisImp) SetUserID(k string, id primitive.ObjectID, time time.Duration) error {
+	return rimp.conn.Set(k, id.Hex(), time).Err()
 }
 
 //获取token
-func (conn *redisImp) GetUserID(k string) (primitive.ObjectID, error) {
-	s := conn.rcli.Get(k)
+func (rimp *redisImp) GetUserID(k string) (primitive.ObjectID, error) {
+	s := rimp.conn.Get(k)
 	hs, err := s.Result()
 	if err != nil {
 		return primitive.NilObjectID, err
@@ -58,9 +59,10 @@ func (conn *redisImp) GetUserID(k string) (primitive.ObjectID, error) {
 }
 
 //NewRedisImp 创建缓存接口
-func NewRedisImp(ctx context.Context, rcli *redis.Client) IRedisImp {
+func NewRedisImp(ctx context.Context, rcli *redis.Client, conn *redis.Conn) IRedisImp {
 	return &redisImp{
 		Context: ctx,
 		rcli:    rcli,
+		conn:    conn,
 	}
 }

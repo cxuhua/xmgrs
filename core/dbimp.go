@@ -1,8 +1,6 @@
 package core
 
 import (
-	"errors"
-
 	"github.com/cxuhua/xginx"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -96,11 +94,12 @@ func (db *dbimp) table(tbl string, opts ...*options.CollectionOptions) *mongo.Co
 }
 
 func (db *dbimp) UseTx(fn func(db IDbImp) error) error {
+	//如果已经在事务中直接调用
 	if db.IsTx() {
-		return errors.New("tx core can't invoke Transaction")
+		return fn(db)
 	}
 	_, err := db.WithTransaction(db, func(sdb mongo.SessionContext) (i interface{}, err error) {
-		return nil, fn(NewDbImp(sdb, db.rcli, true))
+		return nil, fn(NewDbImp(sdb, db.rcli, db.conn, true))
 	})
 	return err
 }
@@ -110,10 +109,10 @@ func (db *dbimp) IsTx() bool {
 }
 
 //NewDbImp 新建一个数据库接口
-func NewDbImp(ctx mongo.SessionContext, rcli *redis.Client, tx bool) IDbImp {
+func NewDbImp(ctx mongo.SessionContext, rcli *redis.Client, conn *redis.Conn, tx bool) IDbImp {
 	return &dbimp{
 		SessionContext: ctx,
-		redisImp:       &redisImp{Context: ctx, rcli: rcli},
+		redisImp:       &redisImp{Context: ctx, conn: conn, rcli: rcli},
 		isTx:           tx,
 	}
 }
