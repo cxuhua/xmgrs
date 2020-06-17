@@ -231,10 +231,10 @@ type TTxState int
 //交易状态定义
 const (
 	TTxStateNew    TTxState = 0 //新交易
-	TTxStateSign   TTxState = 1 //已签名
-	TTxStatePool   TTxState = 2 //进入交易池
-	TTxStateBlock  TTxState = 3 //进入区块
-	TTxStateCancel TTxState = 4 //作废
+	TTxStateSign            = 1 //已签名
+	TTxStatePool            = 2 //进入交易池
+	TTxStateBlock           = 3 //进入区块
+	TTxStateCancel          = 4 //取消作废
 )
 
 //TTx 临时交易信息
@@ -264,6 +264,7 @@ func NewSigs(tid xginx.HASH256, uid primitive.ObjectID, kid string, hash []byte,
 }
 
 //设置交易签名
+//重写 SignTx 保存需要签名的相关数据等待签名
 type setsigner struct {
 	db IDbImp //db接口
 }
