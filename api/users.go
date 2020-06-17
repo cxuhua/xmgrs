@@ -325,12 +325,16 @@ func registerAPI(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
+	if len(args.KeyPass) < 6 {
+		c.JSON(http.StatusOK, NewModel(101, "error,key pass too short"))
+		return
+	}
 	if args.KeyPass != "" && args.KeyPass == args.UserPass {
-		c.JSON(http.StatusOK, NewModel(101, "error,login pass == key pass"))
+		c.JSON(http.StatusOK, NewModel(102, "error,login pass == key pass"))
 		return
 	}
 	if args.Code != "9527" {
-		c.JSON(http.StatusOK, NewModel(102, "code error"))
+		c.JSON(http.StatusOK, NewModel(103, "code error"))
 		return
 	}
 	rv := Model{}
@@ -338,17 +342,17 @@ func registerAPI(c *gin.Context) {
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfoWithMobile(args.Mobile)
 		if err == nil {
-			rv.Code = 103
+			rv.Code = 104
 			return errors.New("mobile exists")
 		}
 		user, err = core.NewUser(args.Mobile, args.UserPass, args.KeyPass)
 		if err != nil {
-			rv.Code = 104
+			rv.Code = 105
 			return err
 		}
 		err = sdb.InsertUser(user)
 		if err != nil {
-			rv.Code = 105
+			rv.Code = 106
 			return err
 		}
 		return nil

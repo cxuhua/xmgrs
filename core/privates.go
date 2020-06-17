@@ -98,25 +98,12 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 }
 
 //NewPrivate 新建并写入私钥
-func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
+func (user *TUser) NewPrivate(db IDbImp, desc string, kpass ...string) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
-	//如果是两个密码，第一个为主私钥密码, 第二个新私钥密码
-	upass := []string{}
-	kpass := []string{}
-	if len(pass) >= 2 {
-		upass = []string{pass[0]}
-		kpass = []string{pass[1]}
-	} else if len(pass) == 1 {
-		upass = []string{pass[0]}
-		kpass = []string{pass[0]}
-	} else {
-		upass = []string{}
-		kpass = []string{}
-	}
-	//从用户主私钥创建一个新的私钥
-	dk, err := user.GetDeterKey(upass...)
+	//从用户主私钥创建一个新的私钥，如果主私钥存在密钥使用同一个密钥加密新私钥
+	dk, err := user.GetDeterKey(kpass...)
 	if err != nil {
 		return nil, err
 	}
