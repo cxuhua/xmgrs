@@ -23,13 +23,12 @@ type TUser struct {
 	Cipher CipherType         `bson:"cipher"` //key加密方式
 	Idx    uint32             `bson:"idx"`    //keys idx
 	Token  string             `bson:"token"`  //登陆token
-	PushID string             `bson:"pid"`    //推送id
 }
 
 //NewUser 创建用户
 //mobile 手机号
 //upass 登陆密码
-//kpass 存在设置密钥加密密码
+//kpass 存在设置密钥加密密码,密码设置后任何对私钥的操作必须设置使用这个密码
 func NewUser(mobile string, upass string, kpass ...string) (*TUser, error) {
 	ndk := NewDeterKey()
 	u := &TUser{}
@@ -74,8 +73,6 @@ func (u *TUser) ImportAccount(db IDbImp, acc *xginx.Account, desc string, tags [
 		if err != nil {
 			return nil, err
 		}
-		//保存导入账户的ID
-		pri.ParentID = string(nacc.ID)
 		err = db.InsertPrivate(pri)
 		if err != nil {
 			return nil, err

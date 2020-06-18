@@ -80,7 +80,6 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 	dp.Pks = ndk.GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.ID = GetPrivateID(dp.Pkh)
-	dp.ParentID = dk.GetID()
 	dp.UserID = uid
 	if len(pass) > 0 && pass[0] != "" {
 		dp.Cipher = CipherTypeAes
@@ -125,16 +124,15 @@ func (user *TUser) NewPrivate(db IDbImp, desc string, kpass ...string) (*TPrivat
 
 //TPrivate 私钥管理
 type TPrivate struct {
-	ID       string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
-	ParentID string             `bson:"pid"`    //父私钥id
-	UserID   primitive.ObjectID `bson:"uid"`    //所属用户
-	Cipher   CipherType         `bson:"cipher"` //加密方式
-	Pks      xginx.PKBytes      `bson:"pks"`    //公钥
-	Pkh      xginx.HASH160      `bson:"pkh"`    //公钥hash
-	Keys     string             `bson:"keys"`   //私钥内容
-	Idx      uint32             `bson:"idx"`    //索引
-	Time     int64              `bson:"time"`   //创建时间
-	Desc     string             `bson:"desc"`   //描述
+	ID     string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
+	UserID primitive.ObjectID `bson:"uid"`    //所属用户
+	Cipher CipherType         `bson:"cipher"` //加密方式
+	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
+	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
+	Keys   string             `bson:"keys"`   //私钥内容
+	Idx    uint32             `bson:"idx"`    //索引
+	Time   int64              `bson:"time"`   //创建时间
+	Desc   string             `bson:"desc"`   //描述
 }
 
 //GetDeter 加载密钥

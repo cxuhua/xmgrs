@@ -90,27 +90,6 @@ func importAccountAPI(c *gin.Context) {
 	c.JSON(http.StatusOK, NewModel(0, id))
 }
 
-// 设置用户推送id
-func setUserPushIDAPI(c *gin.Context) {
-	args := struct {
-		PushID string `form:"pid" binding:"required"` //推送id
-	}{}
-	if err := c.ShouldBind(&args); err != nil {
-		c.JSON(http.StatusOK, NewModel(100, err))
-		return
-	}
-	app := core.GetApp(c)
-	uid := GetAppUserID(c)
-	err := app.UseDb(func(db core.IDbImp) error {
-		return db.SetPushID(uid, args.PushID)
-	})
-	if err != nil {
-		c.JSON(http.StatusOK, NewModel(200, err))
-		return
-	}
-	c.JSON(http.StatusOK, NewModel(0, "OK"))
-}
-
 //退出登陆
 func quitLoginAPI(c *gin.Context) {
 	app := core.GetApp(c)
