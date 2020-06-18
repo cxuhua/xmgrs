@@ -412,7 +412,6 @@ func createUserPrivateAPI(c *gin.Context) {
 		}
 		i := item{}
 		i.ID = pri.ID
-		i.Parent = pri.ParentID
 		i.Index = pri.Idx
 		i.Desc = pri.Desc
 		i.Cipher = int(pri.Cipher)
@@ -455,7 +454,6 @@ func listPrivatesAPI(c *gin.Context) {
 		for _, v := range pris {
 			i := item{
 				ID:     v.ID,
-				Parent: v.ParentID,
 				Desc:   v.Desc,
 				Cipher: int(v.Cipher),
 				Index:  v.Idx,

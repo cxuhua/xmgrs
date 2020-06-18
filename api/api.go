@@ -136,7 +136,6 @@ func V1Entry(rg *gin.RouterGroup) {
 	rg.POST("/login", loginAPI)
 
 	auth := rg.Group("/", IsLogin)
-	auth.POST("/set/pushid", setUserPushIDAPI)
 	auth.GET("/quit/login", quitLoginAPI)
 	auth.GET("/user/info", userInfoAPI)
 	auth.GET("/user/coins", listCoinsAPI)

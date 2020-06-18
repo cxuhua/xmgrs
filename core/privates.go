@@ -80,7 +80,6 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 	dp.Pks = ndk.GetPks()
 	dp.Pkh = dp.Pks.Hash()
 	dp.ID = GetPrivateID(dp.Pkh)
-	dp.ParentID = dk.GetID()
 	dp.UserID = uid
 	if len(pass) > 0 && pass[0] != "" {
 		dp.Cipher = CipherTypeAes
@@ -98,25 +97,12 @@ func NewPrivate(uid primitive.ObjectID, idx uint32, dk *DeterKey, desc string, p
 }
 
 //NewPrivate 新建并写入私钥
-func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate, error) {
+func (user *TUser) NewPrivate(db IDbImp, desc string, kpass ...string) (*TPrivate, error) {
 	if !db.IsTx() {
 		return nil, errors.New("need use tx")
 	}
-	//如果是两个密码，第一个为主私钥密码, 第二个新私钥密码
-	upass := []string{}
-	kpass := []string{}
-	if len(pass) >= 2 {
-		upass = []string{pass[0]}
-		kpass = []string{pass[1]}
-	} else if len(pass) == 1 {
-		upass = []string{pass[0]}
-		kpass = []string{pass[0]}
-	} else {
-		upass = []string{}
-		kpass = []string{}
-	}
-	//从用户主私钥创建一个新的私钥
-	dk, err := user.GetDeterKey(upass...)
+	//从用户主私钥创建一个新的私钥，如果主私钥存在密钥使用同一个密钥加密新私钥
+	dk, err := user.GetDeterKey(kpass...)
 	if err != nil {
 		return nil, err
 	}
@@ -138,16 +124,15 @@ func (user *TUser) NewPrivate(db IDbImp, desc string, pass ...string) (*TPrivate
 
 //TPrivate 私钥管理
 type TPrivate struct {
-	ID       string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
-	ParentID string             `bson:"pid"`    //父私钥id
-	UserID   primitive.ObjectID `bson:"uid"`    //所属用户
-	Cipher   CipherType         `bson:"cipher"` //加密方式
-	Pks      xginx.PKBytes      `bson:"pks"`    //公钥
-	Pkh      xginx.HASH160      `bson:"pkh"`    //公钥hash
-	Keys     string             `bson:"keys"`   //私钥内容
-	Idx      uint32             `bson:"idx"`    //索引
-	Time     int64              `bson:"time"`   //创建时间
-	Desc     string             `bson:"desc"`   //描述
+	ID     string             `bson:"_id"`    //私钥id GetPrivateId(pkh)生成
+	UserID primitive.ObjectID `bson:"uid"`    //所属用户
+	Cipher CipherType         `bson:"cipher"` //加密方式
+	Pks    xginx.PKBytes      `bson:"pks"`    //公钥
+	Pkh    xginx.HASH160      `bson:"pkh"`    //公钥hash
+	Keys   string             `bson:"keys"`   //私钥内容
+	Idx    uint32             `bson:"idx"`    //索引
+	Time   int64              `bson:"time"`   //创建时间
+	Desc   string             `bson:"desc"`   //描述
 }
 
 //GetDeter 加载密钥

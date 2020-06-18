@@ -103,6 +103,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 }
 
 //TAccount 账户数据结构
+//一个账号可能有多个私钥构成，签名时必须按照规则签名所需的私钥
 type TAccount struct {
 	ID     xginx.Address        `bson:"_id"`  //账号地址id
 	UserID []primitive.ObjectID `bson:"uid"`  //所属的多个账户，当用多个私钥创建时，所属私钥的用户集合

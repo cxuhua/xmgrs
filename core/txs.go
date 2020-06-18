@@ -231,10 +231,10 @@ type TTxState int
 //交易状态定义
 const (
 	TTxStateNew    TTxState = 0 //新交易
-	TTxStateSign   TTxState = 1 //已签名
-	TTxStatePool   TTxState = 2 //进入交易池
-	TTxStateBlock  TTxState = 3 //进入区块
-	TTxStateCancel TTxState = 4 //作废
+	TTxStateSign            = 1 //已签名
+	TTxStatePool            = 2 //进入交易池
+	TTxStateBlock           = 3 //进入区块
+	TTxStateCancel          = 4 //取消作废
 )
 
 //TTx 临时交易信息
@@ -264,6 +264,7 @@ func NewSigs(tid xginx.HASH256, uid primitive.ObjectID, kid string, hash []byte,
 }
 
 //设置交易签名
+//重写 SignTx 保存需要签名的相关数据等待签名
 type setsigner struct {
 	db IDbImp //db接口
 }
@@ -405,6 +406,7 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 //ListUserTxs 获取用户需要处理的交易
 //sign 是否签名
 func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error) {
+	bi := xginx.GetBlockIndex()
 	ids := map[xginx.HASH256]bool{}
 	//获取需要uid签名的记录
 	col := ctx.table(TSigName)
@@ -430,6 +432,10 @@ func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	for tid := range ids {
 		tx, err := ctx.GetTx(tid[:])
 		if err != nil {
+			continue
+		}
+		//如果获取的是未签名的，并且已经验证成功，不返回这个交易
+		if !sign && tx.Verify(ctx, bi) {
 			continue
 		}
 		txs = append(txs, tx)
