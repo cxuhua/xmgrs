@@ -13,6 +13,7 @@ require (
 	github.com/go-playground/form/v4 v4.1.1
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/go-redis/redis/v7 v7.4.0
+	github.com/hashicorp/go-memdb v1.2.1
 	github.com/json-iterator/go v1.1.10
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.6.1
