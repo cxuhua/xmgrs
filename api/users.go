@@ -1,81 +1,23 @@
 package api
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/cxuhua/xmgrs/util"
-
 	"github.com/cxuhua/xginx"
 
 	"github.com/cxuhua/xmgrs/core"
+	"github.com/cxuhua/xmgrs/util"
 
 	"github.com/gin-gonic/gin"
 )
 
-//账号证明信息，证明系统是否有此账号的控制权
-func accountProveAPI(c *gin.Context) {
+//导出账号地址
+func exportAccountAPI(c *gin.Context) {
 	args := struct {
-		Addr xginx.Address `form:"addr" binding:"IsAddress"` //账号地址
-		Msg  string        `form:"msg" binding:"required"`   //签名随机信息
-	}{}
-	if err := c.ShouldBind(&args); err != nil {
-		c.JSON(http.StatusOK, NewModel(100, err))
-		return
-	}
-	type result struct {
-		Code  int           `json:"code"`
-		Addr  xginx.Address `json:"addr"`  //输入的地址
-		Msg   string        `json:"msg"`   //输入的随机信息
-		Nonce string        `json:"nonce"` //服务器端随机字符串，防止接口被利用
-		Acc   string        `json:"acc"`   //b58编码账户账号信息
-		Sigs  []string      `json:"sigs"`  //b58编码签名信息
-	}
-	//添加一些防止被利用
-	app := core.GetApp(c)
-	res := result{
-		Addr:  args.Addr,
-		Msg:   args.Msg,
-		Nonce: util.NonceStr(32),
-	}
-	hv := xginx.Hash256([]byte(args.Msg + res.Nonce))
-	err := app.UseDb(func(db core.IDbImp) error {
-		sac, err := db.GetAccount(args.Addr)
-		if err != nil {
-			return err
-		}
-		//记载私钥
-		acc, err := sac.ToAccount(db, true)
-		if err != nil {
-			return err
-		}
-		str, err := acc.Dump(false)
-		if err != nil {
-			return err
-		}
-		res.Acc = str
-		sigs, err := acc.SignAll(hv)
-		if err != nil {
-			return err
-		}
-		for _, sigb := range sigs {
-			res.Sigs = append(res.Sigs, hex.EncodeToString(sigb))
-		}
-		return nil
-	})
-	if err != nil {
-		c.JSON(http.StatusOK, NewModel(200, err))
-		return
-	}
-	c.JSON(http.StatusOK, res)
-}
-
-// 设置用户推送id
-func setUserPushIDAPI(c *gin.Context) {
-	args := struct {
-		PushID string `form:"pid" binding:"required"` //推送id
+		ID   xginx.Address `form:"id" binding:"IsAddress"` //账号id
+		Pass []string      `form:"pass"`                   //加密密码
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -83,14 +25,69 @@ func setUserPushIDAPI(c *gin.Context) {
 	}
 	app := core.GetApp(c)
 	uid := GetAppUserID(c)
-	err := app.UseDb(func(db core.IDbImp) error {
-		return db.SetPushID(uid, args.PushID)
+	var dump string
+	err := app.UseTx(func(db core.IDbImp) error {
+		acc, err := db.GetAccount(args.ID)
+		if err != nil {
+			return err
+		}
+		if !acc.HasUserID(uid) {
+			return fmt.Errorf("no access")
+		}
+		xacc, err := acc.ToAccount(db, true, args.Pass...)
+		if err != nil {
+			return err
+		}
+		dump, err = xacc.Dump(true, args.Pass...)
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		c.JSON(http.StatusOK, NewModel(200, err))
 		return
 	}
-	c.JSON(http.StatusOK, NewModel(0, "OK"))
+	c.String(http.StatusOK, dump)
+}
+
+//导入地址账户
+func importAccountAPI(c *gin.Context) {
+	args := struct {
+		Body string   `form:"body" binding:"required"` //内容
+		Pass []string `form:"pass"`                    //加密密码
+		Desc string   `form:"desc"`                    //描述
+		Tags []string `form:"tags"`                    //标签
+	}{}
+	if err := c.ShouldBind(&args); err != nil {
+		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	acc, err := xginx.LoadAccount(args.Body, args.Pass...)
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(101, err))
+		return
+	}
+	var id xginx.Address
+	app := core.GetApp(c)
+	uid := GetAppUserID(c)
+	err = app.UseTx(func(db core.IDbImp) error {
+		user, err := db.GetUserInfo(uid)
+		if err != nil {
+			return err
+		}
+		tacc, err := user.ImportAccount(db, acc, args.Desc, args.Tags, args.Pass...)
+		if err != nil {
+			return err
+		}
+		id = tacc.ID
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(200, err))
+		return
+	}
+	c.JSON(http.StatusOK, NewModel(0, id))
 }
 
 //退出登陆
@@ -128,16 +125,14 @@ func signTxAPI(c *gin.Context) {
 		}
 		//如果不是新交易
 		if ttx.State != core.TTxStateNew {
-			return nil
+			return fmt.Errorf("new tx can sign")
 		}
-		//如果不是我的
-		if !core.ObjectIDEqual(ttx.UserID, uid) {
-			return errors.New("can't sign")
-		}
+		//获取需要我签名的信息
 		sigs, err := db.ListUserSigs(uid, id)
 		if err != nil {
 			return err
 		}
+		//开始签名
 		for _, sig := range sigs {
 			if sig.IsSign {
 				continue
@@ -152,7 +147,7 @@ func signTxAPI(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		//如果签名验证成功,更新为已经签名
+		//如果签名验证成功,更新为已经签名，否则需要等待所有签名执行完成
 		if ttx.Verify(db, bi) {
 			err = ttx.SetTxState(db, core.TTxStateSign)
 		}
@@ -167,42 +162,32 @@ func signTxAPI(c *gin.Context) {
 
 //TTxModel 交易model
 type TTxModel struct {
-	ID       string        `json:"id"`
-	Ver      uint32        `json:"ver"`
-	Ins      []TxInModel   `json:"ins"`
-	Outs     []TxOutModel  `json:"outs"`
-	LockTime uint32        `json:"lt"`
-	Time     int64         `json:"time"`
-	Desc     string        `json:"desc"`
-	State    core.TTxState `json:"state"`
+	ID    string        `json:"id"`
+	Ver   uint32        `json:"ver"`
+	Ins   []interface{} `json:"ins"`
+	Outs  []TxOutModel  `json:"outs"`
+	Time  int64         `json:"time"`
+	Desc  string        `json:"desc"`
+	State core.TTxState `json:"state"`
 }
 
 //NewTTxModel 创建交易model
 func NewTTxModel(ttx *core.TTx, bi *xginx.BlockIndex) TTxModel {
 	m := TTxModel{
-		ID:       xginx.NewHASH256(ttx.ID).String(),
-		Ver:      ttx.Ver,
-		Ins:      []TxInModel{},
-		Outs:     []TxOutModel{},
-		LockTime: ttx.LockTime,
-		Time:     ttx.Time,
-		Desc:     ttx.Desc,
-		State:    ttx.State,
+		ID:    xginx.NewHASH256(ttx.ID).String(),
+		Ver:   ttx.Ver,
+		Ins:   []interface{}{},
+		Outs:  []TxOutModel{},
+		Time:  ttx.Time,
+		Desc:  ttx.Desc,
+		State: ttx.State,
 	}
 	for _, in := range ttx.Ins {
-		out, err := in.ToTxIn().LoadTxOut(bi)
-		if err != nil {
-			panic(err)
-		}
-		addr, err := out.Script.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-		inv := TxInModel{
-			Addr:     addr,
-			Value:    out.Value,
-			Sequence: in.Sequence,
-		}
+		inv := TxInModel{}
+		inv.OutID = xginx.NewHASH256(in.OutHash).String()
+		inv.OutIndex = in.OutIndex
+		inv.Script = util.ScriptToStr(in.Script)
+		inv.Sequence = in.Sequence
 		m.Ins = append(m.Ins, inv)
 	}
 	for _, out := range ttx.Outs {
@@ -231,9 +216,8 @@ func listUserSignTxsAPI(c *gin.Context) {
 			return err
 		}
 		for _, ttx := range txs {
-			//如果已经签名成功忽略
-			_, err := ttx.ToTx(db, bi)
-			if err == nil {
+			//如果已经签名
+			if ttx.Verify(db, bi) {
 				continue
 			}
 			ttxs = append(ttxs, ttx)
@@ -320,12 +304,12 @@ func registerAPI(c *gin.Context) {
 		c.JSON(http.StatusOK, NewModel(100, err))
 		return
 	}
-	if args.Mobile == "" || args.UserPass == "" {
-		c.JSON(http.StatusOK, NewModel(101, "mobile or pass args error"))
+	if len(args.KeyPass) < 6 {
+		c.JSON(http.StatusOK, NewModel(101, "error,key pass too short"))
 		return
 	}
 	if args.KeyPass != "" && args.KeyPass == args.UserPass {
-		c.JSON(http.StatusOK, NewModel(102, "login pass == key pass"))
+		c.JSON(http.StatusOK, NewModel(102, "error,login pass == key pass"))
 		return
 	}
 	if args.Code != "9527" {
@@ -340,10 +324,14 @@ func registerAPI(c *gin.Context) {
 			rv.Code = 104
 			return errors.New("mobile exists")
 		}
-		user = core.NewUser(args.Mobile, args.UserPass, args.KeyPass)
-		err = sdb.InsertUser(user)
+		user, err = core.NewUser(args.Mobile, args.UserPass, args.KeyPass)
 		if err != nil {
 			rv.Code = 105
+			return err
+		}
+		err = sdb.InsertUser(user)
+		if err != nil {
+			rv.Code = 106
 			return err
 		}
 		return nil
@@ -412,7 +400,7 @@ func listCoinsAPI(c *gin.Context) {
 	uid := GetAppUserID(c)
 	type item struct {
 		ID     xginx.Address `json:"id"`     //所属账号地址
-		Locked bool          `json:"locked"` //是否成熟
+		Locked bool          `json:"locked"` //是否被锁定，锁定的不可用
 		Pool   bool          `json:"pool"`   //是否是内存池中的
 		Value  xginx.Amount  `json:"value"`  //数量
 		TxID   string        `json:"tx"`     //交易id
@@ -429,19 +417,21 @@ func listCoinsAPI(c *gin.Context) {
 		Items:  []item{},
 		Height: bi.Height(),
 	}
+	//判断消费高度下金额是否可用
 	spent := bi.NextHeight()
 	err := app.UseDb(func(sdb core.IDbImp) error {
 		user, err := sdb.GetUserInfo(uid)
 		if err != nil {
-			return err
-		}
-		//获取用户余额
-		bi := xginx.GetBlockIndex()
-		coins, err := user.ListCoins(sdb, bi)
-		if err != nil {
 			res.Code = 101
 			return err
 		}
+		//获取用户余额
+		coins, err := user.ListCoins(sdb, bi)
+		if err != nil {
+			res.Code = 102
+			return err
+		}
+		coins.All.Sort()
 		for _, coin := range coins.All {
 			i := item{}
 			id, err := xginx.EncodeAddress(coin.CPkh)
@@ -473,8 +463,10 @@ func userInfoAPI(c *gin.Context) {
 	type result struct {
 		Model
 		Mobile string       `json:"mobile"`
-		Coins  xginx.Amount `json:"coins"` //可用余额
-		Locks  xginx.Amount `json:"locks"` //锁定的
+		Coins  xginx.Amount `json:"coins"`  //可用余额
+		Locks  xginx.Amount `json:"locks"`  //锁定的int
+		Cipher int          `json:"cipher"` //key加密方式
+		Index  uint32       `json:"index"`  //keys idx
 	}
 	res := result{}
 	err := app.UseDb(func(db core.IDbImp) error {
@@ -489,12 +481,11 @@ func userInfoAPI(c *gin.Context) {
 			res.Code = 101
 			return err
 		}
-		//可用的
 		res.Coins = coins.Coins.Balance()
-		//锁定的
 		res.Locks = coins.Locks.Balance()
-		//
 		res.Mobile = user.Mobile
+		res.Cipher = int(user.Cipher)
+		res.Index = user.Idx
 		return nil
 	})
 	if err != nil {

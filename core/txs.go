@@ -56,12 +56,18 @@ func (st *DbSignListener) GetAcc(ckv *xginx.CoinKeyValue) (*xginx.Account, error
 		return nil, err
 	}
 	//只需要账号信息，不需要私钥
+	//要分析需要哪些签名
 	return acc.ToAccount(st.db, false)
 }
 
-//GetExt 获取输出地址的扩展
-func (st *DbSignListener) GetExt(addr xginx.Address) []byte {
-	return nil
+//GetTxOutExec 获取输出执行脚本 addr 输出的地址
+func (st *DbSignListener) GetTxOutExec(addr xginx.Address) []byte {
+	return xginx.DefaultLockedScript
+}
+
+//GetTxInExec 获取输入执行脚本 ckv消费的金额对象
+func (st *DbSignListener) GetTxInExec(ckv *xginx.CoinKeyValue) []byte {
+	return xginx.DefaultInputScript
 }
 
 //GetCoins 获取使用的金额
@@ -88,8 +94,10 @@ func (st *DbSignListener) GetKeep() xginx.Address {
 }
 
 //SignTx 获取签名信息,保存需要签名的信息
+//这里只保存需要签名的hash，不进行签名
 func (st *DbSignListener) SignTx(singer xginx.ISigner, pass ...string) error {
-	addr := singer.GetAddress()
+	//每个输入对应的输出都需要签名
+	addr := singer.GetOutAddress()
 	//获取对应的账号
 	acc, err := st.db.GetAccount(addr)
 	if err != nil {
@@ -104,6 +112,7 @@ func (st *DbSignListener) SignTx(singer xginx.ISigner, pass ...string) error {
 	if err != nil {
 		return err
 	}
+	st.sigs = []*TSigs{}
 	//分析账户用到的密钥，并保存记录等候签名
 	for _, kid := range acc.Kid {
 		pk, err := st.db.GetPrivate(kid)
@@ -129,8 +138,8 @@ func NewTTxIn(in *xginx.TxIn) TTxIn {
 	vi := TTxIn{}
 	vi.OutHash = in.OutHash[:]
 	vi.OutIndex = in.OutIndex.ToUInt32()
-	vi.Script = in.Script
-	vi.Sequence = in.Sequence
+	vi.Script = in.Script.Clone()
+	vi.Sequence = in.Sequence.ToUInt32()
 	return vi
 }
 
@@ -139,8 +148,8 @@ func (in TTxIn) ToTxIn() *xginx.TxIn {
 	iv := &xginx.TxIn{}
 	iv.OutHash = xginx.NewHASH256(in.OutHash)
 	iv.OutIndex = xginx.VarUInt(in.OutIndex)
-	iv.Script = in.Script
-	iv.Sequence = in.Sequence
+	iv.Script = in.Script.Clone()
+	iv.Sequence = xginx.VarUInt(in.Sequence)
 	return iv
 }
 
@@ -154,7 +163,7 @@ type TTxOut struct {
 func NewTTXOut(out *xginx.TxOut) TTxOut {
 	vo := TTxOut{}
 	vo.Value = int64(out.Value)
-	vo.Script = out.Script
+	vo.Script = out.Script.Clone()
 	return vo
 }
 
@@ -162,17 +171,17 @@ func NewTTXOut(out *xginx.TxOut) TTxOut {
 func (out TTxOut) ToTxOut() *xginx.TxOut {
 	ov := &xginx.TxOut{}
 	ov.Value = xginx.Amount(out.Value)
-	ov.Script = out.Script
+	ov.Script = out.Script.Clone()
 	return ov
 }
 
 //TSigs 保存私钥id 需要签名的hash 并且标记是否已经签名
 type TSigs struct {
-	ID     primitive.ObjectID `bson:"_id"`  //id
+	ID     primitive.ObjectID `bson:"_id"`  //ID
 	UserID primitive.ObjectID `bson:"uid"`  //私钥所属用户
 	TxID   xginx.HASH256      `bson:"tid"`  //交易id
 	KeyID  string             `bson:"kid"`  //私钥id
-	Hash   []byte             `bson:"hash"` //签名hash
+	Hash   []byte             `bson:"hash"` //需要签名的HASH数据
 	Idx    int                `bson:"idx"`  //输入索引
 	IsSign bool               `bson:"sigb"` //是否签名
 	Sigs   xginx.SigBytes     `bson:"sigs"` //签名结果
@@ -221,24 +230,24 @@ type TTxState int
 
 //交易状态定义
 const (
-	TTxStateNew    = 0 //新交易
-	TTxStateSign   = 1 //已签名
-	TTxStatePool   = 2 //进入交易池
-	TTxStateBlock  = 3 //进入区块
-	TTxStateCancel = 4 //作废
+	TTxStateNew    TTxState = 0 //新交易
+	TTxStateSign            = 1 //已签名
+	TTxStatePool            = 2 //进入交易池
+	TTxStateBlock           = 3 //进入区块
+	TTxStateCancel          = 4 //取消作废
 )
 
 //TTx 临时交易信息
 type TTx struct {
-	ID       []byte             `bson:"_id"` //交易id
-	UserID   primitive.ObjectID `bson:"uid"` //谁创建的交易
-	Ver      uint32             `bson:"ver"`
-	Ins      []TTxIn            `bson:"ins"`
-	Outs     []TTxOut           `bson:"outs"`
-	LockTime uint32             `bson:"lt"`
-	Time     int64              `bson:"time"` //创建时间
-	Desc     string             `bson:"desc"`
-	State    TTxState           `bson:"state"` //TTxState*
+	ID     []byte             `bson:"_id"`    //交易id
+	UserID primitive.ObjectID `bson:"uid"`    //谁创建的交易
+	Ver    uint32             `bson:"ver"`    //TxVer
+	Ins    []TTxIn            `bson:"ins"`    //TxInputs
+	Outs   []TTxOut           `bson:"outs"`   //TxOuts
+	Script xginx.Script       `bson:"script"` //交易脚本
+	Time   int64              `bson:"time"`   //创建时间
+	Desc   string             `bson:"desc"`   //TxDesc
+	State  TTxState           `bson:"state"`  //TTxState*
 }
 
 //NewSigs 创建待签名对象
@@ -255,6 +264,7 @@ func NewSigs(tid xginx.HASH256, uid primitive.ObjectID, kid string, hash []byte,
 }
 
 //设置交易签名
+//重写 SignTx 保存需要签名的相关数据等待签名
 type setsigner struct {
 	db IDbImp //db接口
 }
@@ -274,13 +284,11 @@ func (st *setsigner) SignTx(singer xginx.ISigner, pass ...string) error {
 	if err != nil {
 		return err
 	}
-	//转换为xginx acc结构，不需要私钥
-	xacc, err := acc.ToAccount(st.db, false, pass...)
+	//创建脚本
+	wits, err := in.Script.ToWitness()
 	if err != nil {
 		return err
 	}
-	//创建脚本
-	wits := xacc.NewWitnessScript()
 	hash, err := singer.GetSigHash()
 	if err != nil {
 		return err
@@ -318,13 +326,14 @@ func (stx *TTx) SetTxState(db IDbImp, state TTxState) error {
 
 //Verify 验证签名是否成功
 func (stx *TTx) Verify(db IDbImp, bi *xginx.BlockIndex) bool {
+	//转换成功校验就成功
 	_, err := stx.ToTx(db, bi)
 	return err == nil
 }
 
 //ToTx 转换为tx并将签名合并进去
 func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex, pass ...string) (*xginx.TX, error) {
-	tx := xginx.NewTx()
+	tx := xginx.NewTx(0)
 	tx.Ver = xginx.VarUInt(stx.Ver)
 	for _, in := range stx.Ins {
 		tx.Ins = append(tx.Ins, in.ToTxIn())
@@ -332,7 +341,7 @@ func (stx *TTx) ToTx(db IDbImp, bi *xginx.BlockIndex, pass ...string) (*xginx.TX
 	for _, out := range stx.Outs {
 		tx.Outs = append(tx.Outs, out.ToTxOut())
 	}
-	tx.LockTime = stx.LockTime
+	tx.Script = stx.Script.Clone()
 	//使用数据库中的签名设置脚本
 	err := tx.Sign(bi, &setsigner{db: db}, pass...)
 	if err != nil {
@@ -382,13 +391,13 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 	v.State = TTxStateNew
 	v.ID = tx.MustID().Bytes()
 	v.Ver = tx.Ver.ToUInt32()
-	v.LockTime = tx.LockTime
 	for _, in := range tx.Ins {
 		v.Ins = append(v.Ins, NewTTxIn(in))
 	}
 	for _, out := range tx.Outs {
 		v.Outs = append(v.Outs, NewTTXOut(out))
 	}
+	v.Script = tx.Script.Clone()
 	v.UserID = uid
 	v.Time = time.Now().Unix()
 	return v
@@ -397,6 +406,7 @@ func NewTTx(uid primitive.ObjectID, tx *xginx.TX) *TTx {
 //ListUserTxs 获取用户需要处理的交易
 //sign 是否签名
 func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error) {
+	bi := xginx.GetBlockIndex()
 	ids := map[xginx.HASH256]bool{}
 	//获取需要uid签名的记录
 	col := ctx.table(TSigName)
@@ -422,6 +432,10 @@ func (ctx *dbimp) ListUserTxs(uid primitive.ObjectID, sign bool) ([]*TTx, error)
 	for tid := range ids {
 		tx, err := ctx.GetTx(tid[:])
 		if err != nil {
+			continue
+		}
+		//如果获取的是未签名的，并且已经验证成功，不返回这个交易
+		if !sign && tx.Verify(ctx, bi) {
 			continue
 		}
 		txs = append(txs, tx)

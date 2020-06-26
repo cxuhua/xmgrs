@@ -2,10 +2,10 @@ package api
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -23,6 +23,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func init() {
+	*xginx.IsDebug = true
+}
 
 //APITestSuite api测试集合
 type APITestSuite struct {
@@ -66,8 +70,11 @@ func (st *APITestSuite) SetupSuite() {
 			sdb.DeleteUser(u.ID)
 		}
 		//创建测试用户A
-		a := core.NewUser(st.A, "xh0714")
-		err := sdb.InsertUser(a)
+		a, err := core.NewUser(st.A, "xh0714")
+		if err != nil {
+			return err
+		}
+		err = sdb.InsertUser(a)
 		if err != nil {
 			return err
 		}
@@ -82,7 +89,10 @@ func (st *APITestSuite) SetupSuite() {
 		//生成101个测试区块
 		st.bi = xginx.NewTestBlockIndex(101, aa.GetAddress())
 		//创建测试用户B
-		b := core.NewUser(st.B, "xh0714")
+		b, err := core.NewUser(st.B, "xh0714")
+		if err != nil {
+			return err
+		}
 		err = sdb.InsertUser(b)
 		if err != nil {
 			return err
@@ -102,7 +112,7 @@ func (st *APITestSuite) SetupSuite() {
 	st.Require().NoError(err)
 }
 
-func (st *APITestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
+func (st *APITestSuite) Post(uri string, v url.Values, debug ...bool) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodPost, uri, strings.NewReader(v.Encode()))
 	if st.token != "" {
 		req.Header.Set("X-Access-Token", st.token)
@@ -118,10 +128,13 @@ func (st *APITestSuite) Post(uri string, v url.Values) (jsoniter.Any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(debug) > 0 && debug[0] {
+		log.Println(string(body))
+	}
 	return jsoniter.Get(body), nil
 }
 
-func (st *APITestSuite) Get(uri string) (jsoniter.Any, error) {
+func (st *APITestSuite) Get(uri string, debug ...bool) (jsoniter.Any, error) {
 	req := httptest.NewRequest(http.MethodGet, uri, nil)
 	if st.token != "" {
 		req.Header.Set(core.TokenHeader, st.token)
@@ -135,6 +148,9 @@ func (st *APITestSuite) Get(uri string) (jsoniter.Any, error) {
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
+	}
+	if len(debug) > 0 && debug[0] {
+		log.Println(string(body))
 	}
 	return jsoniter.Get(body), nil
 }
@@ -209,36 +225,6 @@ func (st *APITestSuite) SetupTest() {
 
 func (st *APITestSuite) TearDownTest() {
 
-}
-
-func (st *APITestSuite) TestAccountProve() {
-	msg := "dfldjfkdj&*&8"
-	v := url.Values{}
-	v.Set("addr", string(st.aa.ID))
-	v.Set("msg", msg)
-	any, err := st.Post("/v1/account/prove", v)
-	st.Require().NoError(err)
-	st.Require().NotNil(any)
-	st.Require().Equal(msg, any.Get("msg").ToString(), "msg error")
-	nonce := any.Get("nonce").ToString()
-	hv := xginx.Hash256([]byte(msg + nonce))
-	accs := any.Get("acc")
-	acc, err := xginx.LoadAccount(accs.ToString())
-	st.Require().NoError(err)
-	addr, err := acc.GetAddress()
-	st.Require().NoError(err)
-	st.Require().Equal(string(addr), string(st.aa.ID), "addr error")
-	sigs := any.Get("sigs")
-	st.Require().True(sigs.Size() > 0)
-	ss := [][]byte{}
-	for i := 0; i < sigs.Size(); i++ {
-		sv := sigs.Get(i).ToString()
-		sb, err := hex.DecodeString(sv)
-		st.Require().NoError(err)
-		ss = append(ss, sb)
-	}
-	err = acc.VerifyAll(hv, ss)
-	st.Require().NoError(err)
 }
 
 func (st *APITestSuite) TearDownSuite() {

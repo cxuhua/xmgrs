@@ -2,23 +2,21 @@ module github.com/cxuhua/xmgrs
 
 go 1.13
 
-replace github.com/cxuhua/xginx => ../xginx
+replace github.com/cxuhua/xginx v0.0.1 => ../xginx
+
+replace github.com/cxuhua/gopher-lua v1.0.1 => ../gopher-lua
 
 require (
-	github.com/DataDog/zstd v1.4.4 // indirect
-	github.com/cxuhua/payment v1.5.1 // indirect
+	github.com/bsm/redislock v0.5.0
 	github.com/cxuhua/xginx v0.0.1
-	github.com/cxuhua/xweb v1.2.0 // indirect
-	github.com/gin-gonic/gin v1.5.0
+	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/form/v4 v4.1.1
-	github.com/go-redis/redis/v7 v7.0.0-beta.5
-	github.com/go-xorm/xorm v0.7.9 // indirect
-	github.com/json-iterator/go v1.1.7
-	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
-	github.com/pkg/errors v0.9.0 // indirect
-	github.com/stretchr/testify v1.4.0
-	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
+	github.com/go-playground/validator/v10 v10.3.0
+	github.com/go-redis/redis/v7 v7.4.0
+	github.com/hashicorp/go-memdb v1.2.1
+	github.com/json-iterator/go v1.1.10
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/stretchr/testify v1.6.1
 	github.com/xdg/stringprep v1.0.0 // indirect
-	go.mongodb.org/mongo-driver v1.2.1
-	gopkg.in/go-playground/validator.v9 v9.29.1
+	go.mongodb.org/mongo-driver v1.3.4
 )

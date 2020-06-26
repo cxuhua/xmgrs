@@ -34,13 +34,14 @@ const (
 
 /*
 //数据库索引
-core.accounts.ensureIndex({uid:1,tags:1})
-core.accounts.ensureIndex({pkh:1})
-core.privates.ensureIndex({uid:1})
-core.txs.ensureIndex({uid:1})
-core.users.ensureIndex({mobile:1})
-core.sigs.ensureIndex({tid:1})
-core.sigs.ensureIndex({uid:1})
+db.accounts.createIndex({uid:1})
+db.accounts.createIndex({tags:1})
+db.accounts.createIndex({pkh:1})
+db.privates.createIndex({uid:1})
+db.txs.createIndex({uid:1})
+db.users.createIndex({mobile:1})
+db.sigs.createIndex({tid:1})
+db.sigs.createIndex({uid:1})
 */
 
 //数据连接地址
@@ -159,7 +160,10 @@ func (app *App) Close() {
 func (app *App) UseRedisWithTimeout(timeout time.Duration, fn func(redv IRedisImp) error) error {
 	ctx, cancel := context.WithTimeout(app, timeout)
 	defer cancel()
-	return fn(NewRedisImp(ctx, rediscli))
+	client := rediscli.WithContext(ctx)
+	conn := client.Conn()
+	defer conn.Close()
+	return fn(NewRedisImp(ctx, client, conn))
 }
 
 //UseRedis 单独使用redis使用默认时间
@@ -173,8 +177,10 @@ func (app *App) UseDbWithTimeout(timeout time.Duration, fn func(db IDbImp) error
 	ctx, cancel := context.WithTimeout(app, timeout)
 	defer cancel()
 	return mongocli.UseSession(ctx, func(sctx mongo.SessionContext) error {
-		//创建数据对象
-		return fn(NewDbImp(sctx, rediscli, false))
+		rcli := rediscli.WithContext(ctx)
+		conn := rcli.Conn()
+		defer conn.Close()
+		return fn(NewDbImp(sctx, rcli, conn, false))
 	})
 }
 

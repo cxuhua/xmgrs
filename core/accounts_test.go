@@ -24,9 +24,10 @@ func (st *AccountTestSuite) SetupSuite() {
 	if user, err := st.db.GetUserInfoWithMobile("17716858036"); err == nil {
 		st.db.DeleteUser(user.ID)
 	}
-	user := NewUser("17716858036", "xh0714")
-	err := st.db.InsertUser(user)
-	st.Assert().NoError(err)
+	user, err := NewUser("17716858036", "xh0714")
+	st.Require().NoError(err)
+	err = st.db.InsertUser(user)
+	st.Require().NoError(err)
 	st.user = user
 }
 
@@ -50,11 +51,6 @@ func (st *AccountTestSuite) TestListCoins() {
 }
 
 func (st *AccountTestSuite) TearDownTest() {
-	//删除私钥
-	for _, id := range st.acc.Kid {
-		err := st.db.DeletePrivate(id)
-		st.Assert().NoError(err)
-	}
 	//删除账户
 	err := st.db.DeleteAccount(st.acc.ID, st.user.ID)
 	st.Assert().NoError(err)

@@ -17,67 +17,117 @@ import (
 
 //AddrValue 地址金额
 type AddrValue struct {
-	Addr  xginx.Address
-	Value xginx.Amount
+	Addr      xginx.Address //目标地址
+	Value     xginx.Amount  //金额
+	OutScript string        //输出脚本
 }
 
-func (av AddrValue) String() string {
-	return fmt.Sprintf("%s->%d", av.Addr, av.Value)
+//Format 格式化
+func (av AddrValue) Format() string {
+	//地址->金额,脚本
+	return fmt.Sprintf("%v->%v,%s", av.Addr, av.Value, av.OutScript)
+}
+
+//解析地址第一个 -> 之前的部分和之后的部分返回
+func parseValueAddress(s string) (string, string) {
+	p := strings.Index(s, "->")
+	if p < 0 {
+		return "", ""
+	}
+	return s[:p], s[p+2:]
+}
+
+//解析 金额和定制的输出脚本,第一个,号之后的全是脚本
+func parseValueScript(s string) (string, string) {
+	p := strings.Index(s, ",")
+	if p < 0 {
+		return s, ""
+	} else if p == len(s)-1 {
+		return s[:p], ""
+	} else if p < len(s) {
+		return s[:p], s[p+1:]
+	}
+	return "", ""
 }
 
 //ParseAddrValue 解析addr->amount格式
 func ParseAddrValue(s string) (AddrValue, error) {
 	av := AddrValue{}
-	v := strings.Split(s, "->")
-	if len(v) != 2 {
+	addr, vss := parseValueAddress(s)
+	if addr == "" || vss == "" {
 		return av, errors.New("dst format error")
 	}
-	amt, err := xginx.ParseIntMoney(v[1])
+	amts, outs := parseValueScript(vss)
+	if amts == "" {
+		return av, errors.New("amount string miss")
+	}
+	//如果未设置，启用默认锁定脚本
+	if outs == "" {
+		outs = string(xginx.DefaultLockedScript)
+	}
+	amt, err := xginx.ParseAmount(amts)
 	if err != nil {
 		return av, err
 	}
 	if !amt.IsRange() {
 		return av, errors.New("amount range error")
 	}
-	av.Addr = xginx.Address(v[0])
+	av.Addr = xginx.Address(addr)
 	err = av.Addr.Check()
 	if err != nil {
 		return av, err
 	}
 	av.Value = amt
+	err = xginx.CheckScript([]byte(outs))
+	if err != nil {
+		return av, err
+	}
+	//设置输出脚本
+	av.OutScript = outs
 	return av, nil
 }
 
 //TxInModel 输出model
 type TxInModel struct {
-	Addr     xginx.Address `json:"addr"`  //coinbase地址是空的
-	Value    xginx.Amount  `json:"value"` //coinbasevalue是空的
-	Sequence uint32        `json:"sequence"`
+	Coinbase bool   `json:"coinbase"` //是否是coinbase输入
+	OutID    string `json:"out"`      //引用id
+	OutIndex uint32 `json:"index"`    //引用索引
+	Script   string `json:"script"`   //输出脚本
+	Sequence uint32 `json:"sequence"` //序列号
+}
+
+//TxCoinbaseModel CoinbaseModel
+type TxCoinbaseModel struct {
+	Coinbase bool   `json:"coinbase"` //是否是coinbase输入
+	Script   string `json:"script"`   //输出脚本
 }
 
 //TxOutModel 输出model
 type TxOutModel struct {
-	Addr  xginx.Address `json:"addr"`
-	Value xginx.Amount  `json:"value"`
+	Addr   xginx.Address `json:"addr"`
+	Value  xginx.Amount  `json:"value"`
+	Script string        `json:"script"` //输出脚本
 }
 
 //TxModel 交易model
 type TxModel struct {
-	Ver      uint32       `json:"ver"`
-	Ins      []TxInModel  `json:"ins"` //为空是coinbase交易
-	Outs     []TxOutModel `json:"outs"`
-	LockTime uint32       `json:"lt"`
-	Confirm  uint32       `json:"confirm"` //确认数 =0 表示在交易池中
-	BlkTime  uint32       `json:"time"`    //区块时间戳
+	ID      string        `json:"id"` //交易id
+	Ver     uint32        `json:"ver"`
+	Ins     []interface{} `json:"ins"` //为空是coinbase交易
+	Outs    []TxOutModel  `json:"outs"`
+	Script  string        `json:"script"`  //交易脚本
+	Confirm uint32        `json:"confirm"` //确认数 =0 表示在交易池中
+	BlkTime uint32        `json:"time"`    //区块时间戳
 }
 
 //NewTxModel 创建model
 func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxModel {
 	m := TxModel{
-		Ver:      tx.Ver.ToUInt32(),
-		Ins:      []TxInModel{},
-		Outs:     []TxOutModel{},
-		LockTime: tx.LockTime,
+		ID:     tx.MustID().String(),
+		Ver:    tx.Ver.ToUInt32(),
+		Ins:    []interface{}{},
+		Outs:   []TxOutModel{},
+		Script: util.ScriptToStr(tx.Script),
 	}
 	if blk != nil {
 		m.Confirm = bi.Height() - blk.Meta.Height + 1
@@ -88,22 +138,19 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 	}
 	for _, in := range tx.Ins {
 		if in.IsCoinBase() {
-			continue
+			cvv := TxCoinbaseModel{
+				Coinbase: true,
+				Script:   util.ScriptToStr(in.Script),
+			}
+			m.Ins = append(m.Ins, cvv)
+		} else {
+			inv := TxInModel{}
+			inv.OutID = in.OutHash.String()
+			inv.OutIndex = in.OutIndex.ToUInt32()
+			inv.Script = util.ScriptToStr(in.Script)
+			inv.Sequence = in.Sequence.ToUInt32()
+			m.Ins = append(m.Ins, inv)
 		}
-		out, err := in.LoadTxOut(bi)
-		if err != nil {
-			panic(err)
-		}
-		addr, err := out.Script.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-		inv := TxInModel{
-			Addr:     addr,
-			Value:    out.Value,
-			Sequence: in.Sequence,
-		}
-		m.Ins = append(m.Ins, inv)
 	}
 	for _, out := range tx.Outs {
 		addr, err := out.Script.GetAddress()
@@ -111,8 +158,9 @@ func NewTxModel(tx *xginx.TX, blk *xginx.BlockInfo, bi *xginx.BlockIndex) TxMode
 			panic(err)
 		}
 		outv := TxOutModel{
-			Addr:  addr,
-			Value: out.Value,
+			Addr:   addr,
+			Value:  out.Value,
+			Script: util.ScriptToStr(out.Script),
 		}
 		m.Outs = append(m.Outs, outv)
 	}
@@ -207,20 +255,25 @@ func submitTxAPI(c *gin.Context) {
 //创建交易
 func createTxAPI(c *gin.Context) {
 	args := struct {
-		Dst  []string     `form:"dst" binding:"gt=0"`  //addr->amount 向addr转amount个
-		Fee  xginx.Amount `form:"fee" binding:"gte=0"` //交易费
-		Desc string       `form:"desc"`                //描述
-		LT   uint32       `form:"lt"`                  //locktime
+		Dst    []string `form:"dst" binding:"gt=0"`        //addr->amount 向addr转amount个,使用script脚本
+		Fee    string   `form:"fee" binding:"IsAmount"`    //交易费
+		Desc   string   `form:"desc"`                      //描述
+		Script string   `form:"script" binding:"IsScript"` //交易脚本
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
+		return
+	}
+	fee, err := xginx.ParseAmount(args.Fee)
+	if err != nil {
+		c.JSON(http.StatusOK, NewModel(101, err))
 		return
 	}
 	app := core.GetApp(c)
 	uid := GetAppUserID(c)
 	bi := xginx.GetBlockIndex()
 	var ttx *core.TTx = nil
-	err := app.UseTx(func(db core.IDbImp) error {
+	err = app.UseTx(func(db core.IDbImp) error {
 		user, err := db.GetUserInfo(uid)
 		if err != nil {
 			return err
@@ -232,10 +285,10 @@ func createTxAPI(c *gin.Context) {
 			if err != nil {
 				return err
 			}
-			mi.Add(av.Addr, av.Value)
+			mi.Add(av.Addr, av.Value, xginx.Script(av.OutScript))
 		}
-		mi.Fee = args.Fee
-		tx, err := mi.NewTx(args.LT)
+		mi.Fee = fee
+		tx, err := mi.NewTx(0, []byte(args.Script))
 		if err != nil {
 			return err
 		}
@@ -327,7 +380,7 @@ func createAccountAPI(c *gin.Context) {
 func createUserPrivateAPI(c *gin.Context) {
 	args := struct {
 		Desc string   `form:"desc"` //私钥描述
-		Pass []string `form:"pass"` //私钥密码
+		Pass []string `form:"pass"` //私钥密码,如果有密码必须一致
 	}{}
 	if err := c.ShouldBind(&args); err != nil {
 		c.JSON(http.StatusOK, NewModel(100, err))
@@ -337,8 +390,10 @@ func createUserPrivateAPI(c *gin.Context) {
 	uid := GetAppUserID(c)
 	type item struct {
 		ID     string `json:"id"`
+		Parent string `json:"parent"`
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
+		Index  uint32 `json:"index"`
 		Time   int64  `json:"time"`
 	}
 	type result struct {
@@ -357,6 +412,7 @@ func createUserPrivateAPI(c *gin.Context) {
 		}
 		i := item{}
 		i.ID = pri.ID
+		i.Index = pri.Idx
 		i.Desc = pri.Desc
 		i.Cipher = int(pri.Cipher)
 		i.Time = pri.Time
@@ -376,8 +432,10 @@ func listPrivatesAPI(c *gin.Context) {
 	uid := GetAppUserID(c)
 	type item struct {
 		ID     string `json:"id"`
+		Parent string `json:"parent"`
 		Desc   string `json:"desc"`
 		Cipher int    `json:"cipher"`
+		Index  uint32 `json:"index"`
 		Time   int64  `json:"time"`
 	}
 	type result struct {
@@ -398,6 +456,7 @@ func listPrivatesAPI(c *gin.Context) {
 				ID:     v.ID,
 				Desc:   v.Desc,
 				Cipher: int(v.Cipher),
+				Index:  v.Idx,
 				Time:   v.Time,
 			}
 			res.Items = append(res.Items, i)

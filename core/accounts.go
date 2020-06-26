@@ -74,11 +74,12 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 	if num == 0 {
 		return nil, errors.New("num error")
 	}
+	//移除重复的私钥id
 	ids = util.RemoveRepeat(ids)
 	if len(ids) != int(num) {
 		return nil, errors.New("pkhs count != num")
 	}
-	//获取公钥和相关的用户
+	//获取和这些私钥相关的用户
 	imap := map[primitive.ObjectID]bool{}
 	pks := []xginx.PKBytes{}
 	for idx, id := range ids {
@@ -89,6 +90,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 		imap[pri.UserID] = true
 		pks = append(pks, pri.Pks)
 	}
+	//根据相关私钥创建账户地址
 	acc, err := xginx.NewAccountWithPks(num, less, arb, pks)
 	if err != nil {
 		return nil, err
@@ -101,6 +103,7 @@ func NewAccount(db IDbImp, num uint8, less uint8, arb bool, ids []string, desc s
 }
 
 //TAccount 账户数据结构
+//一个账号可能有多个私钥构成，签名时必须按照规则签名所需的私钥
 type TAccount struct {
 	ID     xginx.Address        `bson:"_id"`  //账号地址id
 	UserID []primitive.ObjectID `bson:"uid"`  //所属的多个账户，当用多个私钥创建时，所属私钥的用户集合
@@ -108,10 +111,20 @@ type TAccount struct {
 	Num    uint8                `bson:"num"`  //总的密钥数量
 	Less   uint8                `bson:"less"` //至少通过的签名数量
 	Arb    uint8                `bson:"arb"`  //是否仲裁
-	Pks    []xginx.PKBytes      `bson:"pks"`  //公钥
-	Kid    []string             `bson:"kid"`  //密钥id
+	Pks    []xginx.PKBytes      `bson:"pks"`  //包含的公钥
+	Kid    []string             `bson:"kid"`  //包含的密钥id
 	Time   int64                `bson:"time"` //创建时间
 	Desc   string               `bson:"desc"` //描述
+}
+
+//HasUserID 是否包含用户
+func (acc TAccount) HasUserID(uid primitive.ObjectID) bool {
+	for _, v := range acc.UserID {
+		if ObjectIDEqual(uid, v) {
+			return true
+		}
+	}
+	return false
 }
 
 //GetPrivate 获取第几个私钥
@@ -138,6 +151,7 @@ func (acc *TAccount) ToAccount(db IDbImp, pri bool, pass ...string) (*xginx.Acco
 		}
 		aj.Pubs = append(aj.Pubs, pub)
 	}
+	//如果不加载私钥
 	if !pri {
 		return aj, nil
 	}

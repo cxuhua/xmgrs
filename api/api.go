@@ -9,7 +9,7 @@ import (
 	"github.com/cxuhua/xginx"
 
 	"github.com/gin-gonic/gin/binding"
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/go-playground/validator/v10"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -42,10 +42,7 @@ func NewModel(code int, msg interface{}) Model {
 func IsAddress(fl validator.FieldLevel) bool {
 	v := fl.Field().String()
 	_, err := xginx.DecodeAddress(xginx.Address(v))
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 //HexHash160 字段是否是hash160 hex字符串
@@ -60,6 +57,20 @@ func HexHash256(fl validator.FieldLevel) bool {
 	return err == nil && len(v) == len(xginx.HASH256{})
 }
 
+//IsScript 字段是否是合法的脚本
+func IsScript(fl validator.FieldLevel) bool {
+	str := fl.Field().String()
+	err := xginx.CheckScript([]byte(str))
+	return err == nil
+}
+
+//IsAmount 字段是否是合法的金额
+func IsAmount(fl validator.FieldLevel) bool {
+	str := fl.Field().String()
+	_, err := xginx.ParseAmount(str)
+	return err == nil
+}
+
 //InitEngine 获取默认gin引擎
 func InitEngine(ctx context.Context) *gin.Engine {
 	//注册自定义校验器
@@ -67,6 +78,8 @@ func InitEngine(ctx context.Context) *gin.Engine {
 		v.RegisterValidation("HexHash256", HexHash256)
 		v.RegisterValidation("HexHash160", HexHash160)
 		v.RegisterValidation("IsAddress", IsAddress)
+		v.RegisterValidation("IsScript", IsScript)
+		v.RegisterValidation("IsAmount", IsAmount)
 	}
 	//
 	m := gin.New()
@@ -121,9 +134,8 @@ func IsLogin(c *gin.Context) {
 func V1Entry(rg *gin.RouterGroup) {
 	rg.POST("/register", registerAPI)
 	rg.POST("/login", loginAPI)
-	rg.POST("/account/prove", accountProveAPI)
+
 	auth := rg.Group("/", IsLogin)
-	auth.POST("/set/pushid", setUserPushIDAPI)
 	auth.GET("/quit/login", quitLoginAPI)
 	auth.GET("/user/info", userInfoAPI)
 	auth.GET("/user/coins", listCoinsAPI)
@@ -137,4 +149,6 @@ func V1Entry(rg *gin.RouterGroup) {
 	auth.POST("/new/tx", createTxAPI)
 	auth.POST("/sign/tx", signTxAPI)
 	auth.POST("/submit/tx", submitTxAPI)
+	auth.POST("/import/account", importAccountAPI)
+	auth.POST("/export/account", exportAccountAPI)
 }

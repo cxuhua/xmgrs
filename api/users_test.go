@@ -4,7 +4,6 @@ import (
 	"net/url"
 
 	"github.com/cxuhua/xginx"
-	"github.com/cxuhua/xmgrs/util"
 )
 
 func (st *APITestSuite) RegisterUser() {
@@ -30,26 +29,11 @@ func (st *APITestSuite) TestAll() {
 
 	st.GetUserInfo()
 
-	st.SetPushID()
-
 	st.ListUserAccounts()
 
 	st.GetUserCoins()
 
 	st.NewTx()
-}
-
-func (st *APITestSuite) SetPushID() {
-	pid := util.NonceStr(8)
-	v := url.Values{}
-	v.Set("pid", pid)
-	any, err := st.Post("/v1/set/pushid", v)
-	st.Require().NoError(err)
-	st.Require().NotNil(any)
-	st.Require().Equal(any.Get("code").ToInt(), 0, any.Get("error").ToString())
-	user, err := st.db.GetUserInfoWithMobile(st.A)
-	st.Require().NoError(err)
-	st.Require().Equal(user.PushID, pid, "push set error")
 }
 
 func (st *APITestSuite) GetUserInfo() {
@@ -111,7 +95,7 @@ func (st *APITestSuite) GetUserCoins() {
 	txid := any.Get("items", 0, "tx").ToString()
 	addr := any.Get("items", 0, "id").ToString()
 
-	any, err = st.Get("/v1/tx/info/" + txid)
+	any, err = st.Get("/v1/tx/info/"+txid, true)
 	st.Require().NoError(err)
 	st.Require().NotNil(any)
 	code = any.Get("code").ToInt()

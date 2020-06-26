@@ -25,8 +25,9 @@ func (st *TxsTestSuite) SetupSuite() {
 		st.db.DeleteUser(uv.ID)
 	}
 	//创建测试账号
-	user := NewUser("17716858036", "xh0714")
-	err := st.db.InsertUser(user)
+	user, err := NewUser("17716858036", "xh0714")
+	st.Require().NoError(err)
+	err = st.db.InsertUser(user)
 	st.Require().NoError(err)
 	st.user = user
 }
@@ -55,50 +56,57 @@ func (st *TxsTestSuite) SetupTest() {
 //创建新交易测试
 func (st *TxsTestSuite) TestNewTx() {
 	st.Require().NotNil(st.acc, "default account miss")
+	//作为矿工账户
 	bi := xginx.NewTestBlockIndex(100, st.acc.GetAddress())
 	defer xginx.CloseTestBlock(bi)
 	//获取账户金额
 	ds, err := st.acc.ListCoins(bi)
 	st.Require().NoError(err)
+	//应该有一个金额可用
 	st.Require().Equal(len(ds.Coins), 1, "coins miss")
+	//获取测试账户
 	accs := xginx.GetTestAccount(bi)
 	st.Require().NotNil(accs, "get test accounts error")
+	//1作为目标转账用户
 	dst, err := accs[1].GetAddress()
 	st.Require().NoError(err)
 	//创建签名处理lis
 	lis := NewSignListener(st.db, st.user)
 	//生成交易
 	mi := bi.NewTrans(lis)
-	mi.Add(dst, 1*xginx.Coin)
-	mi.Fee = 1000
-	tx, err := mi.NewTx()
+	//向dst转账1COIN
+	mi.Add(dst, 1*xginx.Coin, xginx.DefaultLockedScript)
+	//1000作为交易费
+	mi.Fee = 1 * xginx.Coin
+	tx, err := mi.NewTx(0, xginx.DefaultTxScript)
 	st.Require().NoError(err)
+	//2-2账户会生成两个签名
 	sigs := lis.GetSigs()
 	if len(sigs) != 2 {
 		st.Require().FailNow("sigs count error for 2-2")
 	}
+	//保存交易
 	stx, err := st.user.SaveTx(st.db, tx, lis, "这个2-2签名交易")
 	st.Require().NoError(err)
-	//获取用户需要签名的交易
+	//获取用户需要签名的交易 false表示获取未签名的交易
 	txs, err := st.user.ListTxs(st.db, false)
 	st.Require().NoError(err)
 	st.Require().Equal(len(txs), 1, "txs error")
-	//执行签名
+	//执行签名 未设置密钥密码
 	for _, sig := range sigs {
 		err = sig.Sign(st.db)
 		st.Require().NoError(err)
 	}
-	//获取用户不需要签名的交易
+	//获取用户不需要签名的交易 true表示获取已签名的交易
 	txs, err = st.user.ListTxs(st.db, true)
 	st.Require().NoError(err)
 	st.Require().Equal(len(txs), 1, "txs error")
 	//转换合并签名
 	ntx, err := stx.ToTx(st.db, bi)
 	st.Require().NoError(err)
-
+	//转换后ID应该一致
 	st.Require().Equal(ntx.MustID().Bytes(), stx.ID, "id error")
-	//从数据库获取签名
-	//
+	//删除交易
 	err = st.db.DeleteTx(stx.ID)
 	st.Require().NoError(err)
 }
